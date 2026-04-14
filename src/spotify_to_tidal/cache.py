@@ -1,7 +1,7 @@
 import datetime
 import sqlalchemy
 from sqlalchemy import Table, Column, String, DateTime, MetaData, insert, select, update, delete
-from typing import Dict, List, Sequence, Set, Mapping
+from typing import Dict
 
 
 class MatchFailureDatabase:

@@ -17,7 +17,7 @@ def clear_tidal_playlist(playlist: tidalapi.UserPlaylist, chunk_size: int=20):
             indices = range(min(playlist.num_tracks, chunk_size))
             _remove_indices_from_playlist(playlist, indices)
             progress.update(len(indices))
-    
+
 def add_multiple_tracks_to_playlist(playlist: tidalapi.UserPlaylist, track_ids: List[int], chunk_size: int=20):
     offset = 0
     with tqdm(desc="Adding new tracks to Tidal playlist", total=len(track_ids)) as progress:
@@ -28,7 +28,7 @@ def add_multiple_tracks_to_playlist(playlist: tidalapi.UserPlaylist, track_ids: 
             progress.update(count)
 
 async def _get_all_chunks(url, session, parser, params={}) -> List[tidalapi.Track]:
-    """ 
+    """
         Helper function to get all items from a Tidal endpoint in parallel
         The main library doesn't provide the total number of items or expose the raw json, so use this wrapper instead
     """
@@ -63,7 +63,7 @@ async def get_all_favorites(favorites: tidalapi.Favorites, order: str = "NAME", 
 
 async def get_all_playlists(user: tidalapi.User, chunk_size: int=10) -> List[tidalapi.Playlist]:
     """ Get all user playlists from Tidal in chunks """
-    print(f"Loading playlists from Tidal user")
+    print("Loading playlists from Tidal user")
     params = {
         "limit": chunk_size,
     }
