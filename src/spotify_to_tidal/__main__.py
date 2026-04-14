@@ -1,95 +1,45 @@
-import asyncio
-import yaml
-import argparse
 import sys
+import argparse
 
-from spotify_to_tidal import sync as _sync
-from spotify_to_tidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
-from spotify_to_tidal.providers.spotify import SpotifyProvider
-from spotify_to_tidal.providers.tidal import TidalProvider
+from spotify_to_tidal.config import load_config
+
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default='config.yml', help='location of the config file')
-    parser.add_argument('--uri', help='synchronize a specific URI instead of the one in the config')
-    parser.add_argument('--sync-favorites', action=argparse.BooleanOptionalAction, help='synchronize the favorites')
-    parser.add_argument('--reverse', action='store_true', help='sync from Tidal to Spotify instead')
-    parser.add_argument('--sync', action='store_true', help='bidirectional sync between Spotify and Tidal')
-    parser.add_argument('--allow-deletions', action='store_true', help='allow bidirectional sync to remove tracks deleted from one side')
+    parser = argparse.ArgumentParser(
+        description="Sync playlists and favorites between Spotify and Tidal",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--autorun", action="store_true", help="run sync using saved configuration")
+    group.add_argument("--setup", action="store_true", help="enter interactive setup wizard")
+    group.add_argument("--oneshot", action="store_true", help="interactive one-shot sync (doesn't save sync selections)")
+    parser.add_argument("--config", default="config.yml", help="path to config file (default: config.yml)")
     args = parser.parse_args()
 
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
-    config['allow_deletions'] = args.allow_deletions
+    config_path = args.config
+    config = load_config(config_path)
 
-    spotify = SpotifyProvider.from_config(config['spotify'])
-    tidal = TidalProvider.from_config()
-    failure_cache = MatchFailureDatabase()
+    if args.autorun:
+        from spotify_to_tidal.run import run_sync
 
-    if args.sync:
-        _run_bidirectional(args, config, spotify, tidal, failure_cache)
+        if config is None:
+            print(f"No config found at '{config_path}'. Run `spotify_to_tidal` first to set up.")
+            sys.exit(1)
+        run_sync(config, config_path)
+    elif args.oneshot:
+        from spotify_to_tidal.run import run_oneshot
+
+        run_oneshot(config, config_path)
     else:
-        _run_one_way(args, config, spotify, tidal, failure_cache)
+        from spotify_to_tidal.setup import run_wizard
+        from spotify_to_tidal.run import run_sync
 
-def _run_bidirectional(args, config, spotify, tidal, failure_cache):
-    snapshot_db = SyncSnapshotDatabase()
-
-    if args.uri:
-        # URI is a Spotify playlist ID; find matching Tidal playlist by name
-        playlist_a = asyncio.run(spotify.get_playlist_by_id(args.uri))
-        tidal_playlists = _sync.get_dest_playlists(tidal)
-        playlist_b = tidal_playlists.get(playlist_a.name)
-        _sync.sync_playlists_bidirectional_wrapper(spotify, tidal, [(playlist_a, playlist_b)], failure_cache, snapshot_db, config)
-        sync_favorites = args.sync_favorites
-    elif args.sync_favorites:
-        sync_favorites = True
-    else:
-        # Match all Spotify playlists to Tidal playlists by name
-        playlists = _sync.get_user_playlist_mappings(spotify, tidal, config)
-        _sync.sync_playlists_bidirectional_wrapper(spotify, tidal, playlists, failure_cache, snapshot_db, config)
-        sync_favorites = args.sync_favorites is None and config.get('sync_favorites_default', True)
-
-    if sync_favorites:
-        _sync.sync_favorites_bidirectional_wrapper(spotify, tidal, failure_cache, snapshot_db, config)
+        config, action = run_wizard(config, config_path)
+        if action == "save_and_run":
+            run_sync(config, config_path)
+        elif action == "cancel":
+            print("Setup cancelled.")
 
 
-def _run_one_way(args, config, spotify, tidal, failure_cache):
-    if args.reverse:
-        source, dest = tidal, spotify
-    else:
-        source, dest = spotify, tidal
-
-    # Remap config playlist keys to generic source_id/dest_id
-    for item in config.get('sync_playlists') or []:
-        if 'spotify_id' in item and 'tidal_id' in item:
-            if args.reverse:
-                item['source_id'], item['dest_id'] = item.pop('tidal_id'), item.pop('spotify_id')
-            else:
-                item['source_id'], item['dest_id'] = item.pop('spotify_id'), item.pop('tidal_id')
-
-    cache = TrackMatchCache()
-
-    if args.uri:
-        source_playlist = asyncio.run(source.get_playlist_by_id(args.uri))
-        dest_playlists = _sync.get_dest_playlists(dest)
-        playlist_mapping = _sync.pick_dest_playlist(source_playlist, dest_playlists)
-        _sync.sync_playlists_wrapper(source, dest, [playlist_mapping], cache, failure_cache, config)
-        sync_favorites = args.sync_favorites
-    elif args.sync_favorites:
-        sync_favorites = True
-    elif config.get('sync_playlists', None):
-        playlists = _sync.get_playlists_from_config(source, dest, config)
-        _sync.sync_playlists_wrapper(source, dest, playlists, cache, failure_cache, config)
-        sync_favorites = args.sync_favorites is None and config.get('sync_favorites_default', True)
-    else:
-        playlists = _sync.get_user_playlist_mappings(source, dest, config)
-        _sync.sync_playlists_wrapper(source, dest, playlists, cache, failure_cache, config)
-        sync_favorites = args.sync_favorites is None and config.get('sync_favorites_default', True)
-
-    if sync_favorites:
-        _sync.sync_favorites_wrapper(source, dest, cache, failure_cache, config)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
     sys.exit(0)

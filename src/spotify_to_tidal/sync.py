@@ -363,7 +363,7 @@ async def sync_playlist_bidirectional(
                 await provider_b.remove_tracks_from_playlist(playlist_b, to_delete_from_b)
         else:
             total = len(to_delete_from_a) + len(to_delete_from_b)
-            print(f"Skipping removal of {total} track(s) - use --allow-deletions to enable")
+            print(f"Skipping removal of {total} track(s) - enable allow_deletions in config to allow")
             # Preserve snapshot pairs so skipped deletions aren't re-added next run
             prev_a_to_b = {a: b for a, b in previous_snapshot}
             prev_b_to_a = {b: a for a, b in previous_snapshot}
@@ -450,7 +450,7 @@ async def sync_favorites_bidirectional(
                     await provider_b.remove_favorite_track(tid)
         else:
             total = len(to_delete_from_a) + len(to_delete_from_b)
-            print(f"Skipping removal of {total} favorite(s) - use --allow-deletions to enable")
+            print(f"Skipping removal of {total} favorite(s) - enable allow_deletions in config to allow")
             # Preserve snapshot pairs so skipped deletions aren't re-added next run
             prev_a_to_b = {a: b for a, b in previous_snapshot}
             prev_b_to_a = {b: a for a, b in previous_snapshot}

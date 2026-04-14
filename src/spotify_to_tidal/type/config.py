@@ -5,22 +5,26 @@ class SpotifyConfig(TypedDict):
     client_id: str
     client_secret: str
     username: str
-    redirect_url: str
+    redirect_uri: str
 
 
-class TidalConfig(TypedDict):
-    access_token: str
-    refresh_token: str
-    session_id: str
-    token_type: Literal["Bearer"]
-
-
-class PlaylistConfig(TypedDict):
-    spotify_id: str
-    tidal_id: str
+class PlaylistEntry(TypedDict):
+    name: str | None
+    spotify_id: str | None
+    tidal_id: str | None
 
 
 class SyncConfig(TypedDict):
+    mode: Literal["one-way", "two-way"]
+    direction: Literal["spotify-to-tidal", "tidal-to-spotify"]
+    favorites: bool
+    allow_deletions: bool
+    playlists: list[PlaylistEntry]
+
+
+class AppConfig(TypedDict):
+    config_version: int
     spotify: SpotifyConfig
-    sync_playlists: list[PlaylistConfig] | None
-    excluded_playlists: list[str] | None
+    sync: SyncConfig
+    max_concurrency: int
+    rate_limit: int

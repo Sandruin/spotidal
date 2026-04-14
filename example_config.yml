@@ -1,25 +1,33 @@
+config_version: 2
+
 spotify:
   client_id: your_client_id
   client_secret: your_client_secret
   username: your_spotify_username
   redirect_uri: http://127.0.0.1:8888/callback
-  open_browser: True # Set to False if using a headless server environment
 
+sync:
+  # "one-way" or "two-way"
+  mode: two-way
 
-# uncomment this block if you want to only sync specific playlist IDs
-#sync_playlists:
-#  - spotify_id: 1ABCDEqsABCD6EaABCDa0a
-#    tidal_id: a0b1234-0a1b-012a-abcd-a1b234c5d6d7
+  # Only used when mode is "one-way": "spotify-to-tidal" or "tidal-to-spotify"
+  direction: spotify-to-tidal
 
-# uncomment this block if you want to sync all playlists in the account with some exceptions
-#excluded_playlists:
-#  - spotify:playlist:1ABCDEqsABCD6EaABCDa0a
+  # Whether to sync liked/saved tracks (favorites)
+  favorites: true
 
-# default setting for syncing favorites when no command line arguments are provided
-#   - when true:  favorites will be synced by default (overriden when any command line arg provided)
-#   - when false: favorites can only be synced manually via --sync-favorites argument
-sync_favorites_default: true
+  # Whether to propagate deletions in two-way mode
+  allow_deletions: false
 
-# increasing these parameters should increase the search speed, while decreasing reduces likelihood of 429 errors
-max_concurrency: 10 # max concurrent connections at any given time
-rate_limit:      10 # max sustained connections per second
+  # Playlists to sync. Set tidal_id to null if it doesn't exist yet (will be created).
+  playlists:
+    - name: My Playlist
+      spotify_id: 1ABCDEqsABCD6EaABCDa0a
+      tidal_id: a0b1234-0a1b-012a-abcd-a1b234c5d6d7
+    - name: Another Playlist
+      spotify_id: 2BCDEFrtBCDE7FbBCDEb1b
+      tidal_id: null
+
+# Performance tuning
+max_concurrency: 10
+rate_limit: 10

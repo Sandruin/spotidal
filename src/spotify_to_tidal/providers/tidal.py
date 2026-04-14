@@ -248,8 +248,18 @@ class TidalProvider:
         chunk_size = 20
         with tqdm(desc="Adding new tracks to Tidal playlist", total=len(int_ids)) as progress:
             while offset < len(int_ids):
-                count = min(chunk_size, len(int_ids) - offset)
-                raw_playlist.add(int_ids[offset:offset + chunk_size])
+                chunk = int_ids[offset:offset + chunk_size]
+                count = len(chunk)
+                for attempt in range(3):
+                    try:
+                        raw_playlist.add(chunk)
+                        break
+                    except requests.exceptions.HTTPError as e:
+                        if e.response is not None and e.response.status_code == 412 and attempt < 2:
+                            time.sleep(1)
+                            raw_playlist = self._session.playlist(playlist.provider_id)
+                        else:
+                            raise
                 offset += count
                 progress.update(count)
 
