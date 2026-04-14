@@ -2,8 +2,8 @@ import yaml
 import argparse
 import sys
 
-from . import sync as _sync
-from . import auth as _auth
+from spotify_to_tidal import sync as _sync
+from spotify_to_tidal import auth as _auth
 
 def main():
     parser = argparse.ArgumentParser()

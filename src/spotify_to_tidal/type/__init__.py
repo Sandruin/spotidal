@@ -1,5 +1,5 @@
-from .config import SpotifyConfig, TidalConfig, PlaylistConfig, SyncConfig
-from .spotify import SpotifyTrack
+from spotify_to_tidal.type.config import SpotifyConfig, TidalConfig, PlaylistConfig, SyncConfig
+from spotify_to_tidal.type.spotify import SpotifyTrack
 
 from spotipy import Spotify
 from tidalapi import Session, Track

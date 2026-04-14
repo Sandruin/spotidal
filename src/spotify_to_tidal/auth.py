@@ -41,7 +41,7 @@ def open_tidal_session(config = None) -> tidalapi.Session:
         session = tidalapi.Session()
     if previous_session:
         try:
-            if session.load_oauth_session(token_type= previous_session['token_type'],
+            if session.load_oauth_session(token_type=previous_session['token_type'],
                                    access_token=previous_session['access_token'],
                                    refresh_token=previous_session['refresh_token'] ):
                 return session
