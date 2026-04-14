@@ -362,12 +362,10 @@ wheels = [
 
 [[package]]
 name = "spotify-to-tidal"
-version = "1.0.7"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "inquirerpy" },
-    { name = "pytest" },
-    { name = "pytest-mock" },
     { name = "pyyaml" },
     { name = "spotipy" },
     { name = "sqlalchemy" },
@@ -375,16 +373,26 @@ dependencies = [
     { name = "tqdm" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-mock" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "inquirerpy", specifier = ">=0.3.4" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-mock", specifier = ">=3.8" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "spotipy", specifier = ">=2.24" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "tidalapi", specifier = ">=0.8" },
     { name = "tqdm", specifier = ">=4.64" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-mock", specifier = ">=3.8" },
 ]
 
 [[package]]

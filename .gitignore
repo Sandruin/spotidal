@@ -25,7 +25,7 @@ eggs/
 .eggs/
 sdist/
 wheels/
-*.egg-info/
+**/*.egg-info/
 .installed.cfg
 *.egg
 
