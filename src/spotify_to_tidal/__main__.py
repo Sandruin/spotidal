@@ -13,13 +13,28 @@ def main():
     parser.add_argument('--config', default='config.yml', help='location of the config file')
     parser.add_argument('--uri', help='synchronize a specific URI instead of the one in the config')
     parser.add_argument('--sync-favorites', action=argparse.BooleanOptionalAction, help='synchronize the favorites')
+    parser.add_argument('--reverse', action='store_true', help='sync from Tidal to Spotify instead')
     args = parser.parse_args()
 
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
-    source = SpotifyProvider.from_config(config['spotify'])
-    dest = TidalProvider.from_config()
+    spotify = SpotifyProvider.from_config(config['spotify'])
+    tidal = TidalProvider.from_config()
+
+    if args.reverse:
+        source, dest = tidal, spotify
+    else:
+        source, dest = spotify, tidal
+
+    # Remap config playlist keys to generic source_id/dest_id
+    for item in config.get('sync_playlists') or []:
+        if 'spotify_id' in item and 'tidal_id' in item:
+            if args.reverse:
+                item['source_id'], item['dest_id'] = item.pop('tidal_id'), item.pop('spotify_id')
+            else:
+                item['source_id'], item['dest_id'] = item.pop('spotify_id'), item.pop('tidal_id')
+
     cache = TrackMatchCache()
     failure_cache = MatchFailureDatabase()
 

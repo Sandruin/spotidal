@@ -127,14 +127,14 @@ async def search_new_tracks(
     song404 = []
     for idx, source_track in enumerate(tracks_to_search):
         if search_results[idx]:
-            cache.insert(source_track.provider_id, search_results[idx].id)
+            cache.insert(source_track.provider_id, search_results[idx].provider_id)
         else:
             song404.append(f"{source_track.provider_id}: {','.join([a.name for a in source_track.artists])} - {source_track.name}")
             color = ('\033[91m', '\033[0m')
-            print(color[0] + "Could not find the track " + song404[-1] + color[1])
+            print(color[0] + f"Could not find the track on {dest.name}: " + song404[-1] + color[1])
             failure_cache.cache_match_failure(source_track.provider_id)
-    file_name = "songs not found.txt"
-    header = f"==========================\nPlaylist: {playlist_name}\n==========================\n"
+    file_name = "songs_not_found.txt"
+    header = f"==========================\nPlaylist: {playlist_name} (not found on {dest.name})\n==========================\n"
     with open(file_name, "a", encoding="utf-8") as file:
         file.write(header)
         for song in song404:
@@ -258,8 +258,8 @@ def get_playlists_from_config(
 ) -> list[tuple[Playlist, Playlist | None]]:
     output = []
     for item in config['sync_playlists']:
-        source_id = item['spotify_id']
-        dest_id = item['tidal_id']
+        source_id = item['source_id']
+        dest_id = item['dest_id']
         try:
             source_playlist = asyncio.run(source.get_playlist_by_id(source_id))
         except Exception as e:

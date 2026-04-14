@@ -1,13 +1,18 @@
 import asyncio
 import math
 import sys
+import time
+import traceback
 
+import requests
 import spotipy
+from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
+from spotify_to_tidal.match import match, simple
 from spotify_to_tidal.type.models import Album, Artist, Playlist, Track
 
-SPOTIFY_SCOPES = 'playlist-read-private, user-library-read'
+SPOTIFY_SCOPES = 'playlist-read-private, playlist-modify-private, playlist-modify-public, user-library-read, user-library-modify'
 
 
 class SpotifyProvider:
@@ -139,3 +144,61 @@ class SpotifyProvider:
     async def get_playlist_by_id(self, playlist_id: str) -> Playlist:
         raw = self._session.playlist(playlist_id=playlist_id)
         return self._normalize_playlist(raw)
+
+    # -- WriteProvider implementation --
+
+    async def _repeat_on_request_error(self, function, *args, remaining=5, **kwargs):
+        try:
+            return await function(*args, **kwargs)
+        except (spotipy.exceptions.SpotifyException, requests.exceptions.RequestException) as e:
+            if remaining:
+                print(f"{str(e)} occurred, retrying {remaining} times")
+            else:
+                print(f"{str(e)} could not be recovered")
+
+            if isinstance(e, requests.exceptions.RequestException) and e.response is not None:
+                print(f"Response message: {e.response.text}")
+                print(f"Response headers: {e.response.headers}")
+
+            if not remaining:
+                print("Aborting sync")
+                print(f"The following arguments were provided:\n\n {str(args)}")
+                print(traceback.format_exc())
+                sys.exit(1)
+            sleep_schedule = {5: 1, 4: 10, 3: 60, 2: 5 * 60, 1: 10 * 60}
+            time.sleep(sleep_schedule.get(remaining, 1))
+            return await self._repeat_on_request_error(function, *args, remaining=remaining - 1, **kwargs)
+
+    async def search_track(self, source_track: Track) -> Track | None:
+        """Search Spotify for a track matching the source track."""
+        def _search():
+            query = simple(source_track.name) + ' ' + simple(source_track.artists[0].name)
+            results = self._session.search(q=query, type='track', limit=10)
+            for item in results['tracks']['items']:
+                normalized = self._normalize_track(item)
+                if match(normalized, source_track):
+                    return normalized
+            return None
+
+        return await asyncio.to_thread(_search)
+
+    async def create_playlist(self, name: str, description: str) -> Playlist:
+        raw = self._session.user_playlist_create(self._get_user_id(), name, public=False, description=description)
+        return self._normalize_playlist(raw)
+
+    async def add_tracks_to_playlist(self, playlist: Playlist, track_ids: list[str]) -> None:
+        uris = [f'spotify:track:{tid}' for tid in track_ids]
+        offset = 0
+        chunk_size = 100
+        with tqdm(desc="Adding new tracks to Spotify playlist", total=len(uris)) as progress:
+            while offset < len(uris):
+                count = min(chunk_size, len(uris) - offset)
+                self._session.playlist_add_items(playlist.provider_id, uris[offset:offset + chunk_size])
+                offset += count
+                progress.update(count)
+
+    async def clear_playlist(self, playlist: Playlist) -> None:
+        self._session.playlist_replace_items(playlist.provider_id, [])
+
+    async def add_favorite_track(self, track_id: str) -> None:
+        self._session.current_user_saved_tracks_add(tracks=[track_id])

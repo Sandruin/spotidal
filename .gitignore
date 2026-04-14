@@ -5,6 +5,7 @@ config.yaml
 .session.yml
 .claude
 songs not found.txt
+songs_not_found.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
