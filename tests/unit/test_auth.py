@@ -1,15 +1,15 @@
 # tests/unit/test_auth.py
 
 import spotipy
-from spotify_to_tidal.providers.spotify import SpotifyProvider, SPOTIFY_SCOPES
+from spotidal.providers.spotify import SpotifyProvider, SPOTIFY_SCOPES
 
 
 def test_open_spotify_session(mocker):
     mock_spotify_oauth = mocker.patch(
-        "spotify_to_tidal.providers.spotify.spotipy.SpotifyOAuth", autospec=True
+        "spotidal.providers.spotify.spotipy.SpotifyOAuth", autospec=True
     )
     mock_spotify_instance = mocker.patch(
-        "spotify_to_tidal.providers.spotify.spotipy.Spotify", autospec=True
+        "spotidal.providers.spotify.spotipy.Spotify", autospec=True
     )
 
     mock_config = {
@@ -41,7 +41,7 @@ def test_open_spotify_session(mocker):
 
 def test_open_spotify_session_oauth_error(mocker):
     mock_spotify_oauth = mocker.patch(
-        "spotify_to_tidal.providers.spotify.spotipy.SpotifyOAuth", autospec=True
+        "spotidal.providers.spotify.spotipy.SpotifyOAuth", autospec=True
     )
     mock_spotify_oauth.return_value.get_access_token.side_effect = (
         spotipy.SpotifyOauthError("mock error")

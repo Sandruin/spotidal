@@ -2,7 +2,7 @@
 
 import pytest
 from sqlalchemy import create_engine, select
-from spotify_to_tidal.cache import MatchFailureDatabase, TrackMatchCache
+from spotidal.cache import MatchFailureDatabase, TrackMatchCache
 
 
 # Setup an in-memory SQLite database for testing
@@ -15,7 +15,7 @@ def in_memory_db():
 # Test MatchFailureDatabase
 def test_cache_match_failure(in_memory_db, mocker):
     mocker.patch(
-        "spotify_to_tidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
+        "spotidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
     )
     failure_db = MatchFailureDatabase()
 
@@ -34,7 +34,7 @@ def test_cache_match_failure(in_memory_db, mocker):
 
 def test_has_match_failure(in_memory_db, mocker):
     mocker.patch(
-        "spotify_to_tidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
+        "spotidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
     )
     failure_db = MatchFailureDatabase()
 
@@ -46,7 +46,7 @@ def test_has_match_failure(in_memory_db, mocker):
 
 def test_remove_match_failure(in_memory_db, mocker):
     mocker.patch(
-        "spotify_to_tidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
+        "spotidal.cache.sqlalchemy.create_engine", return_value=in_memory_db
     )
     failure_db = MatchFailureDatabase()
 

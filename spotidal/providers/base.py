@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 
-from spotify_to_tidal.type.models import Playlist, Track
+from spotidal.type.models import Playlist, Track
 
 
 @runtime_checkable

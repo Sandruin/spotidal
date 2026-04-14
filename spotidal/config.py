@@ -3,9 +3,9 @@ import shutil
 
 import yaml
 
-from spotify_to_tidal.providers.spotify import SpotifyProvider
-from spotify_to_tidal.providers.tidal import TidalProvider
-from spotify_to_tidal.type.config import AppConfig
+from spotidal.providers.spotify import SpotifyProvider
+from spotidal.providers.tidal import TidalProvider
+from spotidal.type.config import AppConfig
 
 
 def load_config(config_path: str) -> AppConfig | None:

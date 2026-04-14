@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from difflib import SequenceMatcher
 import unicodedata
 
-from spotify_to_tidal.type.models import Album, Track
+from spotidal.type.models import Album, Track
 
 
 def normalize(s: str) -> str:

@@ -5,10 +5,10 @@ import datetime
 from tqdm.asyncio import tqdm as atqdm
 from tqdm import tqdm
 
-from spotify_to_tidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
-from spotify_to_tidal.match import match
-from spotify_to_tidal.providers.base import ReadProvider, ReadWriteProvider, WriteProvider
-from spotify_to_tidal.type.models import Playlist, Track
+from spotidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
+from spotidal.match import match
+from spotidal.providers.base import ReadProvider, ReadWriteProvider, WriteProvider
+from spotidal.type.models import Playlist, Track
 
 
 def populate_track_match_cache(

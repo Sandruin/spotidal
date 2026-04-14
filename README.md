@@ -25,7 +25,7 @@ Dependencies are installed automatically on first `uv run`.
 Run without arguments to enter the interactive setup wizard:
 
 ```bash
-uv run spotify_to_tidal
+uv run spotidal
 ```
 
 The wizard walks you through:
@@ -42,11 +42,11 @@ Your choices are saved to `config.yml`. At the end you can run the sync immediat
 ## Usage
 
 ```
-spotify_to_tidal                # interactive setup wizard
-spotify_to_tidal --setup        # same as above
-spotify_to_tidal --autorun      # run sync using saved config (non-interactive, cron-friendly)
-spotify_to_tidal --oneshot      # interactive one-shot sync (pick playlists without saving to config)
-spotify_to_tidal --config FILE  # use a different config file (works with any mode)
+spotidal                # interactive setup wizard
+spotidal --setup        # same as above
+spotidal --autorun      # run sync using saved config (non-interactive, cron-friendly)
+spotidal --oneshot      # interactive one-shot sync (pick playlists without saving to config)
+spotidal --config FILE  # use a different config file (works with any mode)
 ```
 
 ## Sync modes

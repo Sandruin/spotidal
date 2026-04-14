@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import requests
 
-from spotify_to_tidal.providers.tidal import TidalProvider
-from spotify_to_tidal.type.models import Playlist
+from spotidal.providers.tidal import TidalProvider
+from spotidal.type.models import Playlist
 
 
 def _make_412_error():
@@ -40,7 +40,7 @@ def test_add_tracks_retries_on_412(mocker):
     # First session.playlist() returns the original, second returns a fresh one
     provider._session.playlist.side_effect = [mock_raw_playlist, mock_fresh_playlist]
 
-    with patch("spotify_to_tidal.providers.tidal.time.sleep"):
+    with patch("spotidal.providers.tidal.time.sleep"):
         asyncio.run(provider.add_tracks_to_playlist(playlist, ["1", "2", "3"]))
 
     # Original playlist was tried first
@@ -60,7 +60,7 @@ def test_add_tracks_412_retry_limit(mocker):
     provider._session.playlist.return_value = mock_playlist
 
     import pytest
-    with patch("spotify_to_tidal.providers.tidal.time.sleep"):
+    with patch("spotidal.providers.tidal.time.sleep"):
         with pytest.raises(requests.exceptions.HTTPError):
             asyncio.run(provider.add_tracks_to_playlist(playlist, ["1", "2"]))
 
@@ -103,7 +103,7 @@ def test_add_tracks_chunked_412_mid_stream(mocker):
 
     provider._session.playlist.side_effect = [mock_raw_playlist, mock_fresh_playlist]
 
-    with patch("spotify_to_tidal.providers.tidal.time.sleep"):
+    with patch("spotidal.providers.tidal.time.sleep"):
         asyncio.run(provider.add_tracks_to_playlist(playlist, track_ids))
 
     # First chunk succeeded on original playlist

@@ -1,11 +1,11 @@
 import asyncio
 
-from spotify_to_tidal import sync as _sync
-from spotify_to_tidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
-from spotify_to_tidal.config import backfill_playlist_ids, build_runtime_config, save_config
-from spotify_to_tidal.providers.spotify import SpotifyProvider
-from spotify_to_tidal.providers.tidal import TidalProvider
-from spotify_to_tidal.type.config import AppConfig, PlaylistEntry
+from spotidal import sync as _sync
+from spotidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
+from spotidal.config import backfill_playlist_ids, build_runtime_config, save_config
+from spotidal.providers.spotify import SpotifyProvider
+from spotidal.providers.tidal import TidalProvider
+from spotidal.type.config import AppConfig, PlaylistEntry
 
 
 def run_sync(config: AppConfig, config_path: str):
@@ -46,7 +46,7 @@ def run_sync(config: AppConfig, config_path: str):
 
 def run_oneshot(config: AppConfig | None, config_path: str):
     """Interactive one-shot sync: prompt for everything, run once, don't save sync selections."""
-    from spotify_to_tidal.setup import (
+    from spotidal.setup import (
         authenticate_spotify,
         authenticate_tidal,
         prompt_allow_deletions,

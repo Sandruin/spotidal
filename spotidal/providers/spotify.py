@@ -9,8 +9,8 @@ import spotipy
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
-from spotify_to_tidal.match import match, simple
-from spotify_to_tidal.type.models import Album, Artist, Playlist, Track
+from spotidal.match import match, simple
+from spotidal.type.models import Album, Artist, Playlist, Track
 
 SPOTIFY_SCOPES = 'playlist-read-private, playlist-modify-private, playlist-modify-public, user-library-read, user-library-modify'
 

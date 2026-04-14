@@ -11,8 +11,8 @@ import yaml
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
-from spotify_to_tidal.match import match, simple, test_album_similarity
-from spotify_to_tidal.type.models import Album, Artist, Playlist, Track
+from spotidal.match import match, simple, test_album_similarity
+from spotidal.type.models import Album, Artist, Playlist, Track
 
 
 class TidalProvider:

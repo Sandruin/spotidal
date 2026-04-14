@@ -2,10 +2,10 @@ import asyncio
 
 from InquirerPy import inquirer
 
-from spotify_to_tidal.config import save_config
-from spotify_to_tidal.providers.spotify import SpotifyProvider
-from spotify_to_tidal.providers.tidal import TidalProvider
-from spotify_to_tidal.type.config import AppConfig, PlaylistEntry, SpotifyConfig, SyncConfig
+from spotidal.config import save_config
+from spotidal.providers.spotify import SpotifyProvider
+from spotidal.providers.tidal import TidalProvider
+from spotidal.type.config import AppConfig, PlaylistEntry, SpotifyConfig, SyncConfig
 
 
 def prompt_spotify_credentials(existing: SpotifyConfig | None) -> SpotifyConfig:
