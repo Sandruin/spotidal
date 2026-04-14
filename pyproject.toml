@@ -8,13 +8,13 @@ version = "1.0.7"
 requires-python = ">= 3.12"
 
 dependencies = [
-  "spotipy~=2.24",
-  "tidalapi~=0.8.10",
-  "pyyaml~=6.0",
-  "tqdm~=4.64",
-  "sqlalchemy~=2.0",
-  "pytest~=8.0",
-  "pytest-mock~=3.8"
+  "spotipy>=2.24",
+  "tidalapi>=0.8",
+  "pyyaml>=6.0",
+  "tqdm>=4.64",
+  "sqlalchemy>=2.0",
+  "pytest>=8.0",
+  "pytest-mock>=3.8"
 ]
 
 [tools.setuptools.packages."spotify_to_tidal"]
