@@ -133,12 +133,13 @@ async def search_new_tracks(
             color = ('\033[91m', '\033[0m')
             print(color[0] + f"Could not find the track on {dest.name}: " + song404[-1] + color[1])
             failure_cache.cache_match_failure(source_track.provider_id)
-    file_name = "songs_not_found.txt"
-    header = f"==========================\nPlaylist: {playlist_name} (not found on {dest.name})\n==========================\n"
-    with open(file_name, "a", encoding="utf-8") as file:
-        file.write(header)
-        for song in song404:
-            file.write(f"{song}\n")
+    if song404:
+        file_name = "songs_not_found.txt"
+        header = f"=== Songs not found on playlist {playlist_name} on {dest.name} ==="
+        with open(file_name, "a", encoding="utf-8") as file:
+            file.write(header)
+            for song in song404:
+                file.write(f"{song}\n")
 
 
 async def sync_playlist(
@@ -292,14 +293,20 @@ def _build_bidirectional_match_cache(
 async def sync_playlist_bidirectional(
     provider_a: ReadWriteProvider,
     provider_b: ReadWriteProvider,
-    playlist_a: Playlist,
+    playlist_a: Playlist | None,
     playlist_b: Playlist | None,
     failure_cache: MatchFailureDatabase,
     snapshot_db: SyncSnapshotDatabase,
     config: dict,
 ):
     """Bidirectional sync: add missing tracks to each side, detect and propagate deletions."""
-    tracks_a = await provider_a.get_playlist_tracks(playlist_a)
+    if playlist_a:
+        tracks_a = await provider_a.get_playlist_tracks(playlist_a)
+    else:
+        print(f"No playlist found on {provider_a.name} corresponding to '{playlist_b.name}', creating new playlist")
+        playlist_a = await provider_a.create_playlist(playlist_b.name, playlist_b.description)
+        tracks_a = []
+
     if playlist_b:
         tracks_b = await provider_b.get_playlist_tracks(playlist_b)
     else:

@@ -193,7 +193,7 @@ def prompt_playlists(
 
 
 def prompt_favorites(existing: SyncConfig | None) -> bool:
-    default = existing["favorites"] if existing else True
+    default = existing["favorites"] if existing else False
     return inquirer.confirm(
         message="Sync favorites/liked songs?",
         default=default,

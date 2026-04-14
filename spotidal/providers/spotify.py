@@ -172,6 +172,8 @@ class SpotifyProvider:
     async def search_track(self, source_track: Track) -> Track | None:
         """Search Spotify for a track matching the source track."""
         def _search():
+            if not source_track.artists:
+                return None
             query = simple(source_track.name) + ' ' + simple(source_track.artists[0].name)
             results = self._session.search(q=query, type='track', limit=10)
             for item in results['tracks']['items']:
@@ -180,7 +182,11 @@ class SpotifyProvider:
                     return normalized
             return None
 
-        return await asyncio.to_thread(_search)
+        try:
+            return await asyncio.to_thread(_search)
+        except Exception as e:
+            print(f"Error searching Spotify for '{source_track.name}': {e}")
+            return None
 
     async def create_playlist(self, name: str, description: str) -> Playlist:
         raw = self._session.user_playlist_create(self._get_user_id(), name, public=False, description=description)

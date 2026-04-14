@@ -200,34 +200,43 @@ class TidalProvider:
 
     async def search_track(self, source_track: Track) -> Track | None:
         """Search Tidal for a track matching the source track. Tries album search first, then standalone."""
-        result = await self._search_by_album(source_track)
-        if result:
-            return result
-        return await self._search_standalone(source_track)
+        try:
+            result = await self._search_by_album(source_track)
+            if result:
+                return result
+            return await self._search_standalone(source_track)
+        except Exception as e:
+            print(f"Error searching Tidal for '{source_track.name}': {e}")
+            return None
 
     async def _search_by_album(self, source_track: Track) -> Track | None:
         def _search():
-            if source_track.album and source_track.album.artists:
-                query = simple(source_track.album.name) + " " + simple(source_track.album.artists[0].name)
-                album_result = self._session.search(query, models=[tidalapi.album.Album])
-                source_album = Album(name=source_track.album.name, artists=source_track.album.artists)
-                for album in album_result['albums']:
-                    tidal_album = Album(name=album.name, artists=[Artist(name=a.name) for a in album.artists])
-                    if album.num_tracks >= source_track.track_number and test_album_similarity(source_album, tidal_album):
+            if not source_track.album or not source_track.album.artists or not source_track.track_number:
+                return None
+            query = simple(source_track.album.name) + " " + simple(source_track.album.artists[0].name)
+            album_result = self._session.search(query, models=[tidalapi.album.Album])
+            source_album = Album(name=source_track.album.name, artists=source_track.album.artists)
+            for album in album_result['albums']:
+                tidal_album = Album(name=album.name, artists=[Artist(name=a.name) for a in album.artists])
+                if album.num_tracks >= source_track.track_number and test_album_similarity(source_album, tidal_album):
+                    try:
                         album_tracks = album.tracks()
-                        if len(album_tracks) < source_track.track_number:
-                            assert not len(album_tracks) == album.num_tracks
-                            continue
-                        track = album_tracks[source_track.track_number - 1]
-                        normalized = self._normalize_track(track)
-                        if match(normalized, source_track):
-                            return normalized
+                    except (tidalapi.exceptions.ObjectNotFound, requests.exceptions.HTTPError):
+                        continue
+                    if len(album_tracks) < source_track.track_number:
+                        continue
+                    track = album_tracks[source_track.track_number - 1]
+                    normalized = self._normalize_track(track)
+                    if match(normalized, source_track):
+                        return normalized
             return None
 
         return await asyncio.to_thread(_search)
 
     async def _search_standalone(self, source_track: Track) -> Track | None:
         def _search():
+            if not source_track.artists:
+                return None
             query = simple(source_track.name) + ' ' + simple(source_track.artists[0].name)
             for track in self._session.search(query, models=[tidalapi.media.Track])['tracks']:
                 normalized = self._normalize_track(track)
