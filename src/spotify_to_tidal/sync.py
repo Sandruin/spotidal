@@ -346,6 +346,11 @@ async def sync_playlist_bidirectional(
         new_a_ids = [cache_b_to_a.get(t.provider_id) for t in to_add_to_a if cache_b_to_a.get(t.provider_id)]
         if new_a_ids:
             await provider_a.add_tracks_to_playlist(playlist_a, new_a_ids)
+        # Mirror new pairs into cache_a_to_b so the snapshot captures them
+        for track in to_add_to_a:
+            a_id = cache_b_to_a.get(track.provider_id)
+            if a_id:
+                cache_a_to_b.insert(a_id, track.provider_id)
 
     # Apply deletions
     if to_delete_from_a or to_delete_from_b:
@@ -359,6 +364,15 @@ async def sync_playlist_bidirectional(
         else:
             total = len(to_delete_from_a) + len(to_delete_from_b)
             print(f"Skipping removal of {total} track(s) - use --allow-deletions to enable")
+            # Preserve snapshot pairs so skipped deletions aren't re-added next run
+            prev_a_to_b = {a: b for a, b in previous_snapshot}
+            prev_b_to_a = {b: a for a, b in previous_snapshot}
+            for a_id in to_delete_from_a:
+                if a_id in prev_a_to_b:
+                    cache_a_to_b.insert(a_id, prev_a_to_b[a_id])
+            for b_id in to_delete_from_b:
+                if b_id in prev_b_to_a:
+                    cache_a_to_b.insert(prev_b_to_a[b_id], b_id)
 
     if not to_add_to_b and not to_add_to_a and not to_delete_from_a and not to_delete_from_b:
         print("No changes to write to either playlist")
@@ -418,6 +432,11 @@ async def sync_favorites_bidirectional(
             a_id = cache_b_to_a.get(track.provider_id)
             if a_id:
                 await provider_a.add_favorite_track(a_id)
+        # Mirror new pairs into cache_a_to_b so the snapshot captures them
+        for track in to_add_to_a:
+            a_id = cache_b_to_a.get(track.provider_id)
+            if a_id:
+                cache_a_to_b.insert(a_id, track.provider_id)
 
     if to_delete_from_a or to_delete_from_b:
         if config.get('allow_deletions'):
@@ -432,6 +451,15 @@ async def sync_favorites_bidirectional(
         else:
             total = len(to_delete_from_a) + len(to_delete_from_b)
             print(f"Skipping removal of {total} favorite(s) - use --allow-deletions to enable")
+            # Preserve snapshot pairs so skipped deletions aren't re-added next run
+            prev_a_to_b = {a: b for a, b in previous_snapshot}
+            prev_b_to_a = {b: a for a, b in previous_snapshot}
+            for a_id in to_delete_from_a:
+                if a_id in prev_a_to_b:
+                    cache_a_to_b.insert(a_id, prev_a_to_b[a_id])
+            for b_id in to_delete_from_b:
+                if b_id in prev_b_to_a:
+                    cache_a_to_b.insert(prev_b_to_a[b_id], b_id)
 
     if not to_add_to_b and not to_add_to_a and not to_delete_from_a and not to_delete_from_b:
         print("No changes to favorites on either side")
