@@ -2,6 +2,7 @@
 config.yml
 config.yaml
 .cache*
+.pytest_cache
 .session.yml
 .claude
 songs not found.txt

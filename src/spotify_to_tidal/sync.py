@@ -16,7 +16,7 @@ def populate_track_match_cache(
     dest_tracks_: Sequence[Track],
     cache: TrackMatchCache,
 ):
-    """ Populate the track match cache with existing destination tracks corresponding to source tracks """
+    """Populate the track match cache with existing destination tracks corresponding to source tracks."""
     def _populate_from_source(source_track: Track):
         for idx, dest_track in list(enumerate(dest_tracks)):
             if dest_track.available and match(dest_track, source_track):
@@ -45,7 +45,7 @@ def get_new_source_tracks(
     cache: TrackMatchCache,
     failure_cache: MatchFailureDatabase,
 ) -> list[Track]:
-    """ Extracts only the tracks that have not already been seen in our caches """
+    """Extracts only the tracks that have not already been seen in our caches."""
     results = []
     for track in source_tracks:
         if not track.provider_id:
@@ -59,7 +59,7 @@ def get_dest_track_ids(
     source_tracks: Sequence[Track],
     cache: TrackMatchCache,
 ) -> list[str]:
-    """ Gets list of corresponding destination track ids for each source track, ignoring duplicates """
+    """Gets list of corresponding destination track ids for each source track, ignoring duplicates."""
     output = []
     seen_tracks: set[str] = set()
 
@@ -86,9 +86,9 @@ async def search_new_tracks(
     failure_cache: MatchFailureDatabase,
     config: dict,
 ):
-    """ Search for each source track on the destination provider and add results to the cache """
+    """Search for each source track on the destination provider and add results to the cache."""
     async def _run_rate_limiter(semaphore):
-        """ Leaky bucket algorithm for rate limiting. Periodically releases items from semaphore at rate_limit """
+        """Leaky bucket algorithm for rate limiting. Periodically releases items from semaphore at rate_limit."""
         rate_limit = config.get('rate_limit', 10)
         _sleep_time = config.get('max_concurrency', 10) / rate_limit / 4
         t0 = datetime.datetime.now()
@@ -150,7 +150,7 @@ async def sync_playlist(
     failure_cache: MatchFailureDatabase,
     config: dict,
 ):
-    """ Sync a single playlist from source to destination """
+    """Sync a single playlist from source to destination."""
     source_tracks = await source.get_playlist_tracks(source_playlist)
     if not source_tracks:
         return
@@ -183,7 +183,7 @@ async def sync_favorites(
     failure_cache: MatchFailureDatabase,
     config: dict,
 ):
-    """ Sync user favorites from source to destination """
+    """Sync user favorites from source to destination."""
     source_tracks = await source.get_favorite_tracks()
     old_dest_tracks = await dest.get_favorite_tracks()
 
@@ -298,7 +298,7 @@ async def sync_playlist_bidirectional(
     snapshot_db: SyncSnapshotDatabase,
     config: dict,
 ):
-    """ Bidirectional sync: add missing tracks to each side, detect and propagate deletions """
+    """Bidirectional sync: add missing tracks to each side, detect and propagate deletions."""
     tracks_a = await provider_a.get_playlist_tracks(playlist_a)
     if playlist_b:
         tracks_b = await provider_b.get_playlist_tracks(playlist_b)
@@ -389,7 +389,7 @@ async def sync_favorites_bidirectional(
     snapshot_db: SyncSnapshotDatabase,
     config: dict,
 ):
-    """ Bidirectional sync of favorites """
+    """Bidirectional sync of favorites."""
     tracks_a = await provider_a.get_favorite_tracks()
     tracks_b = await provider_b.get_favorite_tracks()
 

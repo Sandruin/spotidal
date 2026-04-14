@@ -5,8 +5,8 @@ from sqlalchemy import Table, Column, String, DateTime, MetaData, insert, select
 
 class MatchFailureDatabase:
     """
-    sqlite database of match failures which persists between runs
-    this can be used concurrently between multiple processes
+    SQLite database of match failures which persists between runs.
+    This can be used concurrently between multiple processes.
     """
 
     def __init__(self, filename='.cache.db'):
@@ -29,7 +29,7 @@ class MatchFailureDatabase:
         return datetime.datetime.now() + interval
 
     def cache_match_failure(self, track_id: str):
-        """ notifies that matching failed for the given track_id """
+        """Notifies that matching failed for the given track_id."""
         fetch_statement = select(self.match_failures).where(
             self.match_failures.c.track_id == track_id)
         with self.engine.connect() as connection:
@@ -45,7 +45,7 @@ class MatchFailureDatabase:
                                        "track_id": track_id, "insert_time": datetime.datetime.now(), "next_retry": self._get_next_retry_time()})
 
     def has_match_failure(self, track_id: str) -> bool:
-        """ checks if there was a recent search for which matching failed with the given track_id """
+        """Checks if there was a recent search for which matching failed with the given track_id."""
         statement = select(self.match_failures.c.next_retry).where(
             self.match_failures.c.track_id == track_id)
         with self.engine.connect() as connection:
@@ -55,7 +55,7 @@ class MatchFailureDatabase:
             return False
 
     def remove_match_failure(self, track_id: str):
-        """ removes match failure from the database """
+        """Removes match failure from the database."""
         statement = delete(self.match_failures).where(
             self.match_failures.c.track_id == track_id)
         with self.engine.connect() as connection:
@@ -81,7 +81,7 @@ class SyncSnapshotDatabase:
         meta.create_all(self.engine)
 
     def save_snapshot(self, playlist_key: str, pairs: list[tuple[str, str]]):
-        """ Replace all entries for this playlist with current matched pairs """
+        """Replace all entries for this playlist with current matched pairs."""
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(
@@ -94,7 +94,7 @@ class SyncSnapshotDatabase:
                           "last_seen": datetime.datetime.now()} for a, b in pairs])
 
     def get_snapshot(self, playlist_key: str) -> set[tuple[str, str]]:
-        """ Get previous snapshot as set of (provider_a_id, provider_b_id) pairs """
+        """Get previous snapshot as set of (provider_a_id, provider_b_id) pairs."""
         statement = select(
             self.sync_snapshots.c.provider_a_id,
             self.sync_snapshots.c.provider_b_id,
@@ -106,8 +106,8 @@ class SyncSnapshotDatabase:
 
 class TrackMatchCache:
     """
-    Non-persistent mapping of source track ids -> destination track ids
-    This should NOT be accessed concurrently from multiple processes
+    Non-persistent mapping of source track ids -> destination track ids.
+    This should NOT be accessed concurrently from multiple processes.
     """
 
     def __init__(self):
