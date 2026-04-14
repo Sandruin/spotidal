@@ -17,6 +17,9 @@ dependencies = [
   "pytest-mock>=3.8"
 ]
 
+[tool.ruff.lint]
+select = ["D300"] # enforce """ over ''' for docstrings
+
 [tools.setuptools.packages."spotify_to_tidal"]
 where = "src"
 include = "spotify_to_tidal*"

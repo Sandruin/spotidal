@@ -66,12 +66,12 @@ def test_remove_match_failure(in_memory_db, mocker):
 # Test TrackMatchCache
 def test_track_match_cache_insert():
     track_cache = TrackMatchCache()
-    track_cache.insert(("spotify_id", 123))
-    assert track_cache.get("spotify_id") == 123
+    track_cache.insert("spotify_id", "123")
+    assert track_cache.get("spotify_id") == "123"
 
 
 def test_track_match_cache_get():
     track_cache = TrackMatchCache()
-    track_cache.insert(("spotify_id", 123))
-    assert track_cache.get("spotify_id") == 123
+    track_cache.insert("spotify_id", "123")
+    assert track_cache.get("spotify_id") == "123"
     assert track_cache.get("nonexistent_id") is None

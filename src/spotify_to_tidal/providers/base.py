@@ -1,0 +1,36 @@
+from typing import Protocol, runtime_checkable
+
+from spotify_to_tidal.type.models import Playlist, Track
+
+
+@runtime_checkable
+class ReadProvider(Protocol):
+    @property
+    def name(self) -> str: ...
+
+    async def get_playlists(self, exclude_ids: set[str] | None = None) -> list[Playlist]: ...
+
+    async def get_playlist_tracks(self, playlist: Playlist) -> list[Track]: ...
+
+    async def get_favorite_tracks(self) -> list[Track]: ...
+
+    async def get_playlist_by_id(self, playlist_id: str) -> Playlist: ...
+
+
+@runtime_checkable
+class WriteProvider(Protocol):
+    async def search_track(self, source_track: Track) -> Track | None: ...
+
+    async def create_playlist(self, name: str, description: str) -> Playlist: ...
+
+    async def add_tracks_to_playlist(self, playlist: Playlist, track_ids: list[str]) -> None: ...
+
+    async def clear_playlist(self, playlist: Playlist) -> None: ...
+
+    async def add_favorite_track(self, track_id: str) -> None: ...
+
+
+@runtime_checkable
+class ReadWriteProvider(ReadProvider, WriteProvider, Protocol):
+    """A provider that supports both reading and writing."""
+    ...

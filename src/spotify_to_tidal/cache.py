@@ -4,7 +4,7 @@ from sqlalchemy import Table, Column, String, DateTime, MetaData, insert, select
 
 
 class MatchFailureDatabase:
-    """ 
+    """
     sqlite database of match failures which persists between runs
     this can be used concurrently between multiple processes
     """
@@ -34,7 +34,6 @@ class MatchFailureDatabase:
             self.match_failures.c.track_id == track_id)
         with self.engine.connect() as connection:
             with connection.begin():
-                # Either update the next_retry time if track_id already exists, otherwise create a new entry
                 existing_failure = connection.execute(
                     fetch_statement).fetchone()
                 if existing_failure:
@@ -66,18 +65,15 @@ class MatchFailureDatabase:
 
 class TrackMatchCache:
     """
-    Non-persistent mapping of spotify ids -> tidal_ids
+    Non-persistent mapping of source track ids -> destination track ids
     This should NOT be accessed concurrently from multiple processes
     """
-    data: dict[str, int] = {}
 
-    def get(self, track_id: str) -> int | None:
+    def __init__(self):
+        self.data: dict[str, str] = {}
+
+    def get(self, track_id: str) -> str | None:
         return self.data.get(track_id, None)
 
-    def insert(self, mapping: tuple[str, int]):
-        self.data[mapping[0]] = mapping[1]
-
-
-# Main singleton instance
-failure_cache = MatchFailureDatabase()
-track_match_cache = TrackMatchCache()
+    def insert(self, source_id: str, dest_id: str):
+        self.data[source_id] = dest_id
