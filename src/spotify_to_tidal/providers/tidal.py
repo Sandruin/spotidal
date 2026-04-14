@@ -264,3 +264,18 @@ class TidalProvider:
 
     async def add_favorite_track(self, track_id: str) -> None:
         self._session.user.favorites.add_track(int(track_id))
+
+    async def remove_tracks_from_playlist(self, playlist: Playlist, track_ids: list[str]) -> None:
+        raw_playlist = self._session.playlist(playlist.provider_id)
+        track_id_set = set(track_ids)
+        # Find indices of tracks to remove by matching IDs
+        all_tracks = raw_playlist.tracks()
+        indices_to_remove = [i for i, t in enumerate(all_tracks) if str(t.id) in track_id_set]
+        if indices_to_remove:
+            # Remove in chunks from end to start so indices stay valid
+            chunk_size = 20
+            for i in range(0, len(indices_to_remove), chunk_size):
+                self._remove_indices_from_playlist(raw_playlist, indices_to_remove[i:i + chunk_size])
+
+    async def remove_favorite_track(self, track_id: str) -> None:
+        self._session.user.favorites.remove_track(int(track_id))

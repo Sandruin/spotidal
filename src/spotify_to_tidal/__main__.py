@@ -4,7 +4,7 @@ import argparse
 import sys
 
 from spotify_to_tidal import sync as _sync
-from spotify_to_tidal.cache import MatchFailureDatabase, TrackMatchCache
+from spotify_to_tidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
 from spotify_to_tidal.providers.spotify import SpotifyProvider
 from spotify_to_tidal.providers.tidal import TidalProvider
 
@@ -14,14 +14,46 @@ def main():
     parser.add_argument('--uri', help='synchronize a specific URI instead of the one in the config')
     parser.add_argument('--sync-favorites', action=argparse.BooleanOptionalAction, help='synchronize the favorites')
     parser.add_argument('--reverse', action='store_true', help='sync from Tidal to Spotify instead')
+    parser.add_argument('--sync', action='store_true', help='bidirectional sync between Spotify and Tidal')
+    parser.add_argument('--allow-deletions', action='store_true', help='allow bidirectional sync to remove tracks deleted from one side')
     args = parser.parse_args()
 
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
+    config['allow_deletions'] = args.allow_deletions
 
     spotify = SpotifyProvider.from_config(config['spotify'])
     tidal = TidalProvider.from_config()
+    failure_cache = MatchFailureDatabase()
 
+    if args.sync:
+        _run_bidirectional(args, config, spotify, tidal, failure_cache)
+    else:
+        _run_one_way(args, config, spotify, tidal, failure_cache)
+
+def _run_bidirectional(args, config, spotify, tidal, failure_cache):
+    snapshot_db = SyncSnapshotDatabase()
+
+    if args.uri:
+        # URI is a Spotify playlist ID; find matching Tidal playlist by name
+        playlist_a = asyncio.run(spotify.get_playlist_by_id(args.uri))
+        tidal_playlists = _sync.get_dest_playlists(tidal)
+        playlist_b = tidal_playlists.get(playlist_a.name)
+        _sync.sync_playlists_bidirectional_wrapper(spotify, tidal, [(playlist_a, playlist_b)], failure_cache, snapshot_db, config)
+        sync_favorites = args.sync_favorites
+    elif args.sync_favorites:
+        sync_favorites = True
+    else:
+        # Match all Spotify playlists to Tidal playlists by name
+        playlists = _sync.get_user_playlist_mappings(spotify, tidal, config)
+        _sync.sync_playlists_bidirectional_wrapper(spotify, tidal, playlists, failure_cache, snapshot_db, config)
+        sync_favorites = args.sync_favorites is None and config.get('sync_favorites_default', True)
+
+    if sync_favorites:
+        _sync.sync_favorites_bidirectional_wrapper(spotify, tidal, failure_cache, snapshot_db, config)
+
+
+def _run_one_way(args, config, spotify, tidal, failure_cache):
     if args.reverse:
         source, dest = tidal, spotify
     else:
@@ -36,7 +68,6 @@ def main():
                 item['source_id'], item['dest_id'] = item.pop('spotify_id'), item.pop('tidal_id')
 
     cache = TrackMatchCache()
-    failure_cache = MatchFailureDatabase()
 
     if args.uri:
         source_playlist = asyncio.run(source.get_playlist_by_id(args.uri))
@@ -57,6 +88,7 @@ def main():
 
     if sync_favorites:
         _sync.sync_favorites_wrapper(source, dest, cache, failure_cache, config)
+
 
 if __name__ == '__main__':
     main()

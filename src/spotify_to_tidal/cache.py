@@ -63,6 +63,47 @@ class MatchFailureDatabase:
                 connection.execute(statement)
 
 
+class SyncSnapshotDatabase:
+    """
+    Persists the set of matched track pairs after each bidirectional sync run.
+    Used to detect deletions: if a pair was in the previous snapshot but one side
+    is now missing, the track was deleted from that side.
+    """
+
+    def __init__(self, filename='.cache.db'):
+        self.engine = sqlalchemy.create_engine(f"sqlite:///{filename}")
+        meta = MetaData()
+        self.sync_snapshots = Table('sync_snapshots', meta,
+                                    Column('playlist_key', String, primary_key=True),
+                                    Column('provider_a_id', String, primary_key=True),
+                                    Column('provider_b_id', String, primary_key=True),
+                                    Column('last_seen', DateTime))
+        meta.create_all(self.engine)
+
+    def save_snapshot(self, playlist_key: str, pairs: list[tuple[str, str]]):
+        """ Replace all entries for this playlist with current matched pairs """
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(
+                    delete(self.sync_snapshots).where(
+                        self.sync_snapshots.c.playlist_key == playlist_key))
+                if pairs:
+                    connection.execute(
+                        insert(self.sync_snapshots),
+                        [{"playlist_key": playlist_key, "provider_a_id": a, "provider_b_id": b,
+                          "last_seen": datetime.datetime.now()} for a, b in pairs])
+
+    def get_snapshot(self, playlist_key: str) -> set[tuple[str, str]]:
+        """ Get previous snapshot as set of (provider_a_id, provider_b_id) pairs """
+        statement = select(
+            self.sync_snapshots.c.provider_a_id,
+            self.sync_snapshots.c.provider_b_id,
+        ).where(self.sync_snapshots.c.playlist_key == playlist_key)
+        with self.engine.connect() as connection:
+            rows = connection.execute(statement).fetchall()
+            return {(row.provider_a_id, row.provider_b_id) for row in rows}
+
+
 class TrackMatchCache:
     """
     Non-persistent mapping of source track ids -> destination track ids

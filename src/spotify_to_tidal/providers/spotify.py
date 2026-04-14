@@ -202,3 +202,12 @@ class SpotifyProvider:
 
     async def add_favorite_track(self, track_id: str) -> None:
         self._session.current_user_saved_tracks_add(tracks=[track_id])
+
+    async def remove_tracks_from_playlist(self, playlist: Playlist, track_ids: list[str]) -> None:
+        uris = [f'spotify:track:{tid}' for tid in track_ids]
+        # Spotify allows removing up to 100 tracks per call
+        for i in range(0, len(uris), 100):
+            self._session.playlist_remove_all_occurrences_of_items(playlist.provider_id, uris[i:i + 100])
+
+    async def remove_favorite_track(self, track_id: str) -> None:
+        self._session.current_user_saved_tracks_delete(tracks=[track_id])

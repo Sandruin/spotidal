@@ -29,6 +29,10 @@ class WriteProvider(Protocol):
 
     async def add_favorite_track(self, track_id: str) -> None: ...
 
+    async def remove_tracks_from_playlist(self, playlist: Playlist, track_ids: list[str]) -> None: ...
+
+    async def remove_favorite_track(self, track_id: str) -> None: ...
+
 
 @runtime_checkable
 class ReadWriteProvider(ReadProvider, WriteProvider, Protocol):

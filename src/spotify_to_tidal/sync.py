@@ -5,7 +5,7 @@ import datetime
 from tqdm.asyncio import tqdm as atqdm
 from tqdm import tqdm
 
-from spotify_to_tidal.cache import MatchFailureDatabase, TrackMatchCache
+from spotify_to_tidal.cache import MatchFailureDatabase, SyncSnapshotDatabase, TrackMatchCache
 from spotify_to_tidal.match import match
 from spotify_to_tidal.providers.base import ReadProvider, ReadWriteProvider, WriteProvider
 from spotify_to_tidal.type.models import Playlist, Track
@@ -272,3 +272,191 @@ def get_playlists_from_config(
             raise e
         output.append((source_playlist, dest_playlist))
     return output
+
+
+# -- Bidirectional sync --
+
+def _build_bidirectional_match_cache(
+    tracks_a: Sequence[Track],
+    tracks_b: Sequence[Track],
+) -> tuple[TrackMatchCache, TrackMatchCache]:
+    """Build two caches: a->b and b->a, using the same matching pass."""
+    cache_a_to_b = TrackMatchCache()
+    cache_b_to_a = TrackMatchCache()
+    populate_track_match_cache(tracks_a, tracks_b, cache_a_to_b)
+    for a_id, b_id in cache_a_to_b.data.items():
+        cache_b_to_a.insert(b_id, a_id)
+    return cache_a_to_b, cache_b_to_a
+
+
+async def sync_playlist_bidirectional(
+    provider_a: ReadWriteProvider,
+    provider_b: ReadWriteProvider,
+    playlist_a: Playlist,
+    playlist_b: Playlist | None,
+    failure_cache: MatchFailureDatabase,
+    snapshot_db: SyncSnapshotDatabase,
+    config: dict,
+):
+    """ Bidirectional sync: add missing tracks to each side, detect and propagate deletions """
+    tracks_a = await provider_a.get_playlist_tracks(playlist_a)
+    if playlist_b:
+        tracks_b = await provider_b.get_playlist_tracks(playlist_b)
+    else:
+        print(f"No playlist found on {provider_b.name} corresponding to '{playlist_a.name}', creating new playlist")
+        playlist_b = await provider_b.create_playlist(playlist_a.name, playlist_a.description)
+        tracks_b = []
+
+    cache_a_to_b, cache_b_to_a = _build_bidirectional_match_cache(tracks_a, tracks_b)
+
+    playlist_key = playlist_a.name
+    previous_snapshot = snapshot_db.get_snapshot(playlist_key)
+    previous_a_ids = {pair[0] for pair in previous_snapshot}
+    previous_b_ids = {pair[1] for pair in previous_snapshot}
+
+    only_on_a = [t for t in tracks_a if not cache_a_to_b.get(t.provider_id)]
+    only_on_b = [t for t in tracks_b if not cache_b_to_a.get(t.provider_id)]
+
+    # Classify: new addition vs deletion from other side
+    to_add_to_b: list[Track] = []
+    to_delete_from_a: list[str] = []
+    for track in only_on_a:
+        if track.provider_id in previous_a_ids:
+            to_delete_from_a.append(track.provider_id)
+        else:
+            to_add_to_b.append(track)
+
+    to_add_to_a: list[Track] = []
+    to_delete_from_b: list[str] = []
+    for track in only_on_b:
+        if track.provider_id in previous_b_ids:
+            to_delete_from_b.append(track.provider_id)
+        else:
+            to_add_to_a.append(track)
+
+    # Search and add missing tracks
+    if to_add_to_b:
+        await search_new_tracks(provider_b, to_add_to_b, playlist_a.name, cache_a_to_b, failure_cache, config)
+        new_b_ids = [cache_a_to_b.get(t.provider_id) for t in to_add_to_b if cache_a_to_b.get(t.provider_id)]
+        if new_b_ids:
+            await provider_b.add_tracks_to_playlist(playlist_b, new_b_ids)
+
+    if to_add_to_a:
+        await search_new_tracks(provider_a, to_add_to_a, playlist_a.name, cache_b_to_a, failure_cache, config)
+        new_a_ids = [cache_b_to_a.get(t.provider_id) for t in to_add_to_a if cache_b_to_a.get(t.provider_id)]
+        if new_a_ids:
+            await provider_a.add_tracks_to_playlist(playlist_a, new_a_ids)
+
+    # Apply deletions
+    if to_delete_from_a or to_delete_from_b:
+        if config.get('allow_deletions'):
+            if to_delete_from_a:
+                print(f"Removing {len(to_delete_from_a)} deleted track(s) from {provider_a.name} playlist '{playlist_a.name}'")
+                await provider_a.remove_tracks_from_playlist(playlist_a, to_delete_from_a)
+            if to_delete_from_b:
+                print(f"Removing {len(to_delete_from_b)} deleted track(s) from {provider_b.name} playlist '{playlist_b.name}'")
+                await provider_b.remove_tracks_from_playlist(playlist_b, to_delete_from_b)
+        else:
+            total = len(to_delete_from_a) + len(to_delete_from_b)
+            print(f"Skipping removal of {total} track(s) - use --allow-deletions to enable")
+
+    if not to_add_to_b and not to_add_to_a and not to_delete_from_a and not to_delete_from_b:
+        print("No changes to write to either playlist")
+
+    # Save snapshot of all currently matched pairs
+    current_pairs = list(cache_a_to_b.data.items())
+    snapshot_db.save_snapshot(playlist_key, current_pairs)
+
+
+async def sync_favorites_bidirectional(
+    provider_a: ReadWriteProvider,
+    provider_b: ReadWriteProvider,
+    failure_cache: MatchFailureDatabase,
+    snapshot_db: SyncSnapshotDatabase,
+    config: dict,
+):
+    """ Bidirectional sync of favorites """
+    tracks_a = await provider_a.get_favorite_tracks()
+    tracks_b = await provider_b.get_favorite_tracks()
+
+    cache_a_to_b, cache_b_to_a = _build_bidirectional_match_cache(tracks_a, tracks_b)
+
+    playlist_key = "__favorites__"
+    previous_snapshot = snapshot_db.get_snapshot(playlist_key)
+    previous_a_ids = {pair[0] for pair in previous_snapshot}
+    previous_b_ids = {pair[1] for pair in previous_snapshot}
+
+    only_on_a = [t for t in tracks_a if not cache_a_to_b.get(t.provider_id)]
+    only_on_b = [t for t in tracks_b if not cache_b_to_a.get(t.provider_id)]
+
+    to_add_to_b: list[Track] = []
+    to_delete_from_a: list[str] = []
+    for track in only_on_a:
+        if track.provider_id in previous_a_ids:
+            to_delete_from_a.append(track.provider_id)
+        else:
+            to_add_to_b.append(track)
+
+    to_add_to_a: list[Track] = []
+    to_delete_from_b: list[str] = []
+    for track in only_on_b:
+        if track.provider_id in previous_b_ids:
+            to_delete_from_b.append(track.provider_id)
+        else:
+            to_add_to_a.append(track)
+
+    if to_add_to_b:
+        await search_new_tracks(provider_b, to_add_to_b, "Favorites", cache_a_to_b, failure_cache, config)
+        for track in to_add_to_b:
+            b_id = cache_a_to_b.get(track.provider_id)
+            if b_id:
+                await provider_b.add_favorite_track(b_id)
+
+    if to_add_to_a:
+        await search_new_tracks(provider_a, to_add_to_a, "Favorites", cache_b_to_a, failure_cache, config)
+        for track in to_add_to_a:
+            a_id = cache_b_to_a.get(track.provider_id)
+            if a_id:
+                await provider_a.add_favorite_track(a_id)
+
+    if to_delete_from_a or to_delete_from_b:
+        if config.get('allow_deletions'):
+            if to_delete_from_a:
+                print(f"Removing {len(to_delete_from_a)} deleted track(s) from {provider_a.name} favorites")
+                for tid in to_delete_from_a:
+                    await provider_a.remove_favorite_track(tid)
+            if to_delete_from_b:
+                print(f"Removing {len(to_delete_from_b)} deleted track(s) from {provider_b.name} favorites")
+                for tid in to_delete_from_b:
+                    await provider_b.remove_favorite_track(tid)
+        else:
+            total = len(to_delete_from_a) + len(to_delete_from_b)
+            print(f"Skipping removal of {total} favorite(s) - use --allow-deletions to enable")
+
+    if not to_add_to_b and not to_add_to_a and not to_delete_from_a and not to_delete_from_b:
+        print("No changes to favorites on either side")
+
+    current_pairs = list(cache_a_to_b.data.items())
+    snapshot_db.save_snapshot(playlist_key, current_pairs)
+
+
+def sync_playlists_bidirectional_wrapper(
+    provider_a: ReadWriteProvider,
+    provider_b: ReadWriteProvider,
+    playlists: list[tuple[Playlist, Playlist | None]],
+    failure_cache: MatchFailureDatabase,
+    snapshot_db: SyncSnapshotDatabase,
+    config: dict,
+):
+    for playlist_a, playlist_b in playlists:
+        asyncio.run(sync_playlist_bidirectional(provider_a, provider_b, playlist_a, playlist_b, failure_cache, snapshot_db, config))
+
+
+def sync_favorites_bidirectional_wrapper(
+    provider_a: ReadWriteProvider,
+    provider_b: ReadWriteProvider,
+    failure_cache: MatchFailureDatabase,
+    snapshot_db: SyncSnapshotDatabase,
+    config: dict,
+):
+    asyncio.run(sync_favorites_bidirectional(provider_a, provider_b, failure_cache, snapshot_db, config))
