@@ -32,5 +32,8 @@ venv/
 .dmypy.json
 dmypy.json
 
+# ruff
+.ruff_cache
+
 # Visual Studio Code
 .vscode/
