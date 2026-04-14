@@ -1,5 +1,5 @@
 from spotipy import Spotify
-from typing import TypedDict, List, Dict, Mapping, Literal, Optional
+from typing import TypedDict, Literal
 
 
 class SpotifyImage(TypedDict):
@@ -18,12 +18,12 @@ SpotifySession = Spotify
 
 
 class SpotifyArtist(TypedDict):
-    external_urls: Mapping[str, str]
+    external_urls: dict[str, str]
     followers: SpotifyFollower
-    genres: List[str]
+    genres: list[str]
     href: str
     id: str
-    images: List[SpotifyImage]
+    images: list[SpotifyImage]
     name: str
     popularity: int
     type: str
@@ -33,34 +33,34 @@ class SpotifyArtist(TypedDict):
 class SpotifyAlbum(TypedDict):
     album_type: Literal["album", "single", "compilation"]
     total_tracks: int
-    available_markets: List[str]
-    external_urls: Dict[str, str]
+    available_markets: list[str]
+    external_urls: dict[str, str]
     href: str
     id: str
-    images: List[SpotifyImage]
+    images: list[SpotifyImage]
     name: str
     release_date: str
     release_date_precision: Literal["year", "month", "day"]
-    restrictions: Optional[Dict[Literal["reason"], str]]
+    restrictions: dict[Literal["reason"], str] | None
     type: Literal["album"]
     uri: str
-    artists: List[SpotifyArtist]
+    artists: list[SpotifyArtist]
 
 
 class SpotifyTrack(TypedDict):
     album: SpotifyAlbum
-    artists: List[SpotifyArtist]
-    available_markets: List[str]
+    artists: list[SpotifyArtist]
+    available_markets: list[str]
     disc_number: int
     duration_ms: int
     explicit: bool
-    external_ids: Dict[str, str]
-    external_urls: Dict[str, str]
+    external_ids: dict[str, str]
+    external_urls: dict[str, str]
     href: str
     id: str
     is_playable: bool
-    linked_from: Dict
-    restrictions: Optional[Dict[Literal["reason"], str]]
+    linked_from: dict
+    restrictions: dict[Literal["reason"], str] | None
     name: str
     popularity: int
     preview_url: str

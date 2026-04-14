@@ -1,7 +1,6 @@
 import datetime
 import sqlalchemy
 from sqlalchemy import Table, Column, String, DateTime, MetaData, insert, select, update, delete
-from typing import Dict
 
 
 class MatchFailureDatabase:
@@ -70,7 +69,7 @@ class TrackMatchCache:
     Non-persistent mapping of spotify ids -> tidal_ids
     This should NOT be accessed concurrently from multiple processes
     """
-    data: Dict[str, int] = {}
+    data: dict[str, int] = {}
 
     def get(self, track_id: str) -> int | None:
         return self.data.get(track_id, None)

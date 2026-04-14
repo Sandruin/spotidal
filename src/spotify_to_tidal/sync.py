@@ -4,7 +4,7 @@ import asyncio
 from spotify_to_tidal.cache import failure_cache, track_match_cache
 import datetime
 from difflib import SequenceMatcher
-from typing import Callable, List, Sequence, Set, Mapping
+from collections.abc import Callable, Sequence, Mapping
 import math
 import requests
 import sys
@@ -63,7 +63,7 @@ def artist_match(tidal: tidalapi.Track | tidalapi.Album, spotify) -> bool:
        else:
            return [artist]
 
-    def get_tidal_artists(tidal: tidalapi.Track | tidalapi.Album, do_normalize=False) -> Set[str]:
+    def get_tidal_artists(tidal: tidalapi.Track | tidalapi.Album, do_normalize=False) -> set[str]:
         result: list[str] = []
         for artist in tidal.artists:
             if do_normalize:
@@ -73,7 +73,7 @@ def artist_match(tidal: tidalapi.Track | tidalapi.Album, spotify) -> bool:
             result.extend(split_artist_name(artist_name))
         return set([simple(x.strip().lower()) for x in result])
 
-    def get_spotify_artists(spotify, do_normalize=False) -> Set[str]:
+    def get_spotify_artists(spotify, do_normalize=False) -> set[str]:
         result: list[str] = []
         for artist in spotify['artists']:
             if do_normalize:
@@ -161,7 +161,7 @@ async def repeat_on_request_error(function, *args, remaining=5, **kwargs):
         return await repeat_on_request_error(function, *args, remaining=remaining-1, **kwargs)
 
 
-async def _fetch_all_from_spotify_in_chunks(fetch_function: Callable) -> List[dict]:
+async def _fetch_all_from_spotify_in_chunks(fetch_function: Callable) -> list[dict]:
     output = []
     results = fetch_function(0)
     output.extend([item['track'] for item in results['items'] if item['track'] is not None])
@@ -223,8 +223,8 @@ def populate_track_match_cache(spotify_tracks_: Sequence[t_spotify.SpotifyTrack]
     for track in spotify_tracks:
         _populate_one_track_from_spotify(track)
 
-def get_new_spotify_tracks(spotify_tracks: Sequence[t_spotify.SpotifyTrack]) -> List[t_spotify.SpotifyTrack]:
-    ''' Extracts only the tracks that have not already been seen in our Tidal caches '''
+def get_new_spotify_tracks(spotify_tracks: Sequence[t_spotify.SpotifyTrack]) -> list[t_spotify.SpotifyTrack]:
+    """ Extracts only the tracks that have not already been seen in our Tidal caches """
     results = []
     for spotify_track in spotify_tracks:
         if not spotify_track['id']:
@@ -234,7 +234,7 @@ def get_new_spotify_tracks(spotify_tracks: Sequence[t_spotify.SpotifyTrack]) -> 
     return results
 
 def get_tracks_for_new_tidal_playlist(spotify_tracks: Sequence[t_spotify.SpotifyTrack]) -> Sequence[int]:
-    ''' gets list of corresponding tidal track ids for each spotify track, ignoring duplicates '''
+    """ gets list of corresponding tidal track ids for each spotify track, ignoring duplicates """
     output = []
     seen_tracks = set()
 
@@ -255,7 +255,7 @@ def get_tracks_for_new_tidal_playlist(spotify_tracks: Sequence[t_spotify.Spotify
 async def search_new_tracks_on_tidal(tidal_session: tidalapi.Session, spotify_tracks: Sequence[t_spotify.SpotifyTrack], playlist_name: str, config: dict):
     """ Generic function for searching for each item in a list of Spotify tracks which have not already been seen and adding them to the cache """
     async def _run_rate_limiter(semaphore):
-        ''' Leaky bucket algorithm for rate limiting. Periodically releases items from semaphore at rate_limit'''
+        """ Leaky bucket algorithm for rate limiting. Periodically releases items from semaphore at rate_limit """
         rate_limit = config.get('rate_limit', 10)
         _sleep_time = config.get('max_concurrency', 10) / rate_limit / 4
         t0 = datetime.datetime.now()
@@ -277,7 +277,7 @@ async def search_new_tracks_on_tidal(tidal_session: tidalapi.Session, spotify_tr
         return
 
     # Search for each of the tracks on Tidal concurrently
-    task_description = "Searching Tidal for {}/{} tracks in Spotify playlist '{}'".format(len(tracks_to_search), len(spotify_tracks), playlist_name)
+    task_description = f"Searching Tidal for {len(tracks_to_search)}/{len(spotify_tracks)} tracks in Spotify playlist '{playlist_name}'"
     semaphore = asyncio.Semaphore(config.get('max_concurrency', 10))
     rate_limiter_task = asyncio.create_task(_run_rate_limiter(semaphore))
     search_results = await atqdm.gather( *[ repeat_on_request_error(tidal_search, t, semaphore, tidal_session) for t in tracks_to_search ], desc=task_description )
@@ -332,14 +332,14 @@ async def sync_playlist(spotify_session: spotipy.Spotify, tidal_session: tidalap
 
 async def sync_favorites(spotify_session: spotipy.Spotify, tidal_session: tidalapi.Session, config: dict):
     """ sync user favorites to tidal """
-    async def get_tracks_from_spotify_favorites() -> List[dict]:
+    async def get_tracks_from_spotify_favorites() -> list[dict]:
         def _get_favorite_tracks(offset):
             return spotify_session.current_user_saved_tracks(offset=offset)    
         tracks = await repeat_on_request_error( _fetch_all_from_spotify_in_chunks, _get_favorite_tracks)
         tracks.reverse()
         return tracks
 
-    def get_new_tidal_favorites() -> List[int]:
+    def get_new_tidal_favorites() -> list[int]:
         existing_favorite_ids = set([track.id for track in old_tidal_tracks])
         new_ids = []
         for spotify_track in spotify_tracks:

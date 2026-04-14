@@ -15,7 +15,6 @@ __all__ = [
     "TidalConfig",
     "PlaylistConfig",
     "SyncConfig",
-    "TidalPlaylist",
     "TidalID",
     "SpotifyID",
     "SpotifySession",
