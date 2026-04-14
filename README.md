@@ -1,89 +1,79 @@
-A command line tool for syncing playlists between Spotify and Tidal. Due to various performance optimisations, it is particularly suited for periodic synchronisation of very large collections.
+# spotidal
 
-Installation
------------
-Clone this git repository and then run:
+A command line tool for syncing playlists and liked songs between Spotify and Tidal. Supports one-way mirroring and full two-way sync with deletion detection. Optimised for periodic synchronisation of very large collections.
 
-```bash
-python3 -m pip install -e .
-```
+## Prerequisites
 
-Setup
------
-0. Rename the file example_config.yml to config.yml
-0. Go [here](https://developer.spotify.com/documentation/general/guides/authorization/app-settings/) and register a new app on developer.spotify.com.
-0. Copy and paste your client ID and client secret to the Spotify part of the config file
-0. Copy and paste the value in 'redirect_uri' of the config file to Redirect URIs at developer.spotify.com and press ADD
-0. Enter your Spotify username to the config file
-
-Usage
-----
-
-### One-way sync (default)
-
-Mirrors playlists from Spotify to Tidal:
+This is a [uv](https://docs.astral.sh/uv/) project. Install uv first if you don't have it:
 
 ```bash
-spotify_to_tidal
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Sync a specific playlist:
+## Installation
+
+Clone this repository:
 
 ```bash
-spotify_to_tidal --uri 1ABCDEqsABCD6EaABCDa0a # accepts playlist id or full playlist uri
+git clone https://github.com/Sandruin/spotidal.git && cd spotidal
 ```
 
-Sync just your 'Liked Songs':
+Dependencies are installed automatically on first `uv run`.
+
+## Quick start
+
+Run without arguments to enter the interactive setup wizard:
 
 ```bash
-spotify_to_tidal --sync-favorites
+uv run spotify_to_tidal
 ```
 
-### Reverse sync
+The wizard walks you through:
 
-Same as one-way but from Tidal to Spotify. Requires a Tidal playlist ID:
+1. **Spotify credentials** -- create an app at [developer.spotify.com](https://developer.spotify.com/dashboard), enter your client ID, secret, username, and redirect URI
+2. **Tidal login** -- opens your browser for OAuth authentication
+3. **Sync mode** -- two-way (keep both services in sync) or one-way (mirror from one to the other)
+4. **Playlist selection** -- checkbox list of all your playlists from both services
+5. **Favorites** -- whether to sync liked/saved songs
+6. **Deletion behavior** -- (two-way only) whether removing a track on one side should remove it from the other
 
-```bash
-spotify_to_tidal --reverse --uri <tidal_playlist_id>
+Your choices are saved to `config.yml`. At the end you can run the sync immediately or save and exit.
+
+## Usage
+
+```
+spotify_to_tidal                # interactive setup wizard
+spotify_to_tidal --setup        # same as above
+spotify_to_tidal --autorun      # run sync using saved config (non-interactive, cron-friendly)
+spotify_to_tidal --oneshot      # interactive one-shot sync (pick playlists without saving to config)
+spotify_to_tidal --config FILE  # use a different config file (works with any mode)
 ```
 
-### Bidirectional sync
+## Sync modes
 
-Keeps both Spotify and Tidal in sync with each other:
-
-```bash
-spotify_to_tidal --sync
-spotify_to_tidal --sync --uri <spotify_playlist_id>
-spotify_to_tidal --sync --sync-favorites
-```
-
-See example_config.yml for more configuration options, and `spotify_to_tidal --help` for more options.
-
-Sync modes
-----------
-
-### One-way sync (default / `--reverse`)
+### One-way
 
 - Mirrors the source playlist to the destination, including track ordering
 - Tracks only on the destination side are left untouched
 - Tracks removed from the source are **not** removed from the destination
 - If the track order differs, the destination playlist is cleared and rewritten
 
-### Bidirectional sync (`--sync`)
+### Two-way
 
 - Tracks added to either side are copied to the other
 - Track ordering is **not** synced; new tracks are appended to the end
 - Deletions are detected via a local snapshot stored in `.cache.db`:
   - On the first run, a snapshot of all matched tracks is saved; no deletions are detected
-  - On subsequent runs, if a track was in the previous snapshot but is now missing from one side, it is treated as a deletion and removed from the other side too
-- If a track cannot be found on the other platform, it will not be synced (logged to `songs_not_found.txt`)
+  - On subsequent runs, if a track was in the previous snapshot but is now missing from one side, it is treated as a deletion and removed from the other side (if `allow_deletions` is enabled)
+- If a track cannot be found on the other platform, it is logged to `songs_not_found.txt`
 
-> **Note:** If you previously used this tool with read-only Spotify permissions, you will need to delete the `.cache` file in the project root and re-authenticate to grant the additional write permissions required for reverse or bidirectional sync.
 
----
+> **Note:** If you previously used this tool with read-only Spotify permissions, delete the `.cache` file in the project root and re-authenticate to grant write permissions needed for reverse or bidirectional sync.
 
-#### Join our amazing community as a code contributor
-<br><br>
-<a href="https://github.com/spotify2tidal/spotify_to_tidal/graphs/contributors">
-  <img class="dark-light" src="https://contrib.rocks/image?repo=spotify2tidal/spotify_to_tidal&anon=0&columns=25&max=100&r=true" />
-</a>
+## Acknowledgements
+
+This project is a fork of [spotify2tidal/spotify_to_tidal](https://github.com/spotify2tidal/spotify_to_tidal). Thanks to the original authors and contributors for building the foundation this project is built on.
+
+## AI disclaimer
+
+Claude Code was used to accelerate development. All code was reviewed and approved manually.
