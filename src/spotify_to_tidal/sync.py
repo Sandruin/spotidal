@@ -124,6 +124,7 @@ async def tidal_search(spotify_track, rate_limiter, tidal_session: tidalapi.Sess
             if match(track, spotify_track):
                 failure_cache.remove_match_failure(spotify_track['id'])
                 return track
+
     await rate_limiter.acquire()
     album_search = await asyncio.to_thread( _search_for_track_in_album )
     if album_search:
@@ -255,15 +256,20 @@ async def search_new_tracks_on_tidal(tidal_session: tidalapi.Session, spotify_tr
     """ Generic function for searching for each item in a list of Spotify tracks which have not already been seen and adding them to the cache """
     async def _run_rate_limiter(semaphore):
         ''' Leaky bucket algorithm for rate limiting. Periodically releases items from semaphore at rate_limit'''
-        _sleep_time = config.get('max_concurrency', 10)/config.get('rate_limit', 10)/4 # aim to sleep approx time to drain 1/4 of 'bucket'
+        rate_limit = config.get('rate_limit', 10)
+        _sleep_time = config.get('max_concurrency', 10) / rate_limit / 4
         t0 = datetime.datetime.now()
+        accumulated = 0.0
         while True:
             await asyncio.sleep(_sleep_time)
             t = datetime.datetime.now()
             dt = (t - t0).total_seconds()
-            new_items = round(config.get('rate_limit', 10)*dt)
             t0 = t
-            [semaphore.release() for i in range(new_items)] # leak new_items from the 'bucket'
+            accumulated += rate_limit * dt
+            new_items = int(accumulated)
+            accumulated -= new_items
+            for _ in range(new_items):
+                semaphore.release()
 
     # Extract the new tracks that do not already exist in the old tidal tracklist
     tracks_to_search = get_new_spotify_tracks(spotify_tracks)
