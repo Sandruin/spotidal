@@ -1,8 +1,5 @@
 import asyncio
 import math
-import sys
-import time
-import traceback
 import webbrowser
 
 import requests
@@ -11,6 +8,7 @@ import yaml
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
+from spotidal.errors import AuthenticationError
 from spotidal.match import match, simple, test_album_similarity
 from spotidal.type.models import Album, Artist, Playlist, Track
 
@@ -20,10 +18,10 @@ class TidalProvider:
         self._session = session
 
     @classmethod
-    def from_config(cls, config: dict | None = None) -> 'TidalProvider':
+    def from_config(cls, session_path: str = '.session.yml', config: dict | None = None) -> 'TidalProvider':
         print("Opening Tidal session")
         try:
-            with open('.session.yml', 'r') as session_file:
+            with open(session_path, 'r') as session_file:
                 previous_session = yaml.safe_load(session_file)
         except OSError:
             previous_session = None
@@ -37,7 +35,7 @@ class TidalProvider:
                     refresh_token=previous_session['refresh_token'],
                 ):
                     if not session.check_login():
-                        sys.exit("Could not connect to Tidal")
+                        raise AuthenticationError("Could not connect to Tidal")
                     return cls(session)
             except Exception as e:
                 print("Error loading previous Tidal Session: \n" + str(e))
@@ -49,7 +47,7 @@ class TidalProvider:
             url = 'https://' + url
         webbrowser.open(url)
         future.result()
-        with open('.session.yml', 'w') as f:
+        with open(session_path, 'w') as f:
             yaml.dump({
                 'session_id': session.session_id,
                 'token_type': session.token_type,
@@ -57,7 +55,7 @@ class TidalProvider:
                 'refresh_token': session.refresh_token,
             }, f)
         if not session.check_login():
-            sys.exit("Could not connect to Tidal")
+            raise AuthenticationError("Could not connect to Tidal")
         return cls(session)
 
     @property
@@ -98,9 +96,7 @@ class TidalProvider:
             params = {}
 
         def _make_request(offset: int = 0):
-            new_params = params
-            new_params['offset'] = offset
-            return session.request.map_request(url, params=new_params)
+            return session.request.map_request(url, params={**params, 'offset': offset})
 
         first_chunk_raw = _make_request()
         limit = first_chunk_raw['limit']
@@ -126,30 +122,6 @@ class TidalProvider:
         playlist.request.request('DELETE', f'{playlist._base_url % playlist.id}/items/{index_string}', headers=headers)
         playlist._reparse()
 
-    # -- Internal retry helper --
-
-    async def _repeat_on_request_error(self, function, *args, remaining=5, **kwargs):
-        try:
-            return await function(*args, **kwargs)
-        except (tidalapi.exceptions.TooManyRequests, requests.exceptions.RequestException) as e:
-            if remaining:
-                print(f"{str(e)} occurred, retrying {remaining} times")
-            else:
-                print(f"{str(e)} could not be recovered")
-
-            if isinstance(e, requests.exceptions.RequestException) and e.response is not None:
-                print(f"Response message: {e.response.text}")
-                print(f"Response headers: {e.response.headers}")
-
-            if not remaining:
-                print("Aborting sync")
-                print(f"The following arguments were provided:\n\n {str(args)}")
-                print(traceback.format_exc())
-                sys.exit(1)
-            sleep_schedule = {5: 1, 4: 10, 3: 60, 2: 5 * 60, 1: 10 * 60}
-            time.sleep(sleep_schedule.get(remaining, 1))
-            return await self._repeat_on_request_error(function, *args, remaining=remaining - 1, **kwargs)
-
     # -- ReadProvider implementation --
 
     async def get_playlists(self, exclude_ids: set[str] | None = None) -> list[Playlist]:
@@ -161,7 +133,8 @@ class TidalProvider:
             parser=self._session.user.playlist.parse_factory,
             params=params,
         )
-        return [self._normalize_playlist(p) for p in raw_playlists]
+        exclude = exclude_ids or set()
+        return [self._normalize_playlist(p) for p in raw_playlists if str(p.id) not in exclude]
 
     async def get_playlist_tracks(self, playlist: Playlist) -> list[Track]:
         print(f"Loading tracks from Tidal playlist '{playlist.name}'")
@@ -265,7 +238,7 @@ class TidalProvider:
                         break
                     except requests.exceptions.HTTPError as e:
                         if e.response is not None and e.response.status_code == 412 and attempt < 2:
-                            time.sleep(1)
+                            await asyncio.sleep(1)
                             raw_playlist = self._session.playlist(playlist.provider_id)
                         else:
                             raise
@@ -293,8 +266,9 @@ class TidalProvider:
         if indices_to_remove:
             # Remove in chunks from end to start so indices stay valid
             chunk_size = 20
-            for i in range(0, len(indices_to_remove), chunk_size):
-                self._remove_indices_from_playlist(raw_playlist, indices_to_remove[i:i + chunk_size])
+            for i in range(len(indices_to_remove), 0, -chunk_size):
+                chunk_start = max(i - chunk_size, 0)
+                self._remove_indices_from_playlist(raw_playlist, indices_to_remove[chunk_start:i])
 
     async def remove_favorite_track(self, track_id: str) -> None:
         self._session.user.favorites.remove_track(int(track_id))

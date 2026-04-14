@@ -1,8 +1,10 @@
 import asyncio
+import os
 
 from InquirerPy import inquirer
 
 from spotidal.config import save_config
+from spotidal.errors import AuthenticationError
 from spotidal.providers.spotify import SpotifyProvider
 from spotidal.providers.tidal import TidalProvider
 from spotidal.type.config import AppConfig, PlaylistEntry, SpotifyConfig, SyncConfig
@@ -47,14 +49,14 @@ def authenticate_spotify(spotify_config: SpotifyConfig) -> SpotifyProvider:
             provider = SpotifyProvider.from_config(spotify_config)
             print("Connected to Spotify.\n")
             return provider
-        except SystemExit:
+        except AuthenticationError:
             print("Authentication failed. Please check your credentials.\n")
             spotify_config = prompt_spotify_credentials(spotify_config)
 
 
-def authenticate_tidal() -> TidalProvider:
+def authenticate_tidal(session_path: str = '.session.yml') -> TidalProvider:
     print("\n=== Tidal Setup ===")
-    provider = TidalProvider.from_config()
+    provider = TidalProvider.from_config(session_path=session_path)
     print("Connected to Tidal.\n")
     return provider
 
@@ -248,7 +250,8 @@ def run_wizard(
     spotify = authenticate_spotify(spotify_config)
 
     # Screen 2: Tidal authentication
-    tidal = authenticate_tidal()
+    session_path = os.path.join(os.path.dirname(os.path.abspath(config_path)), '.session.yml')
+    tidal = authenticate_tidal(session_path)
 
     # Screen 3: Sync mode
     mode = prompt_sync_mode(existing_sync)

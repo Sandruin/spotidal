@@ -2,6 +2,7 @@ import sys
 import argparse
 
 from spotidal.config import load_config
+from spotidal.errors import AuthenticationError, SyncAbortError
 
 
 def main():
@@ -18,28 +19,34 @@ def main():
     config_path = args.config
     config = load_config(config_path)
 
-    if args.autorun:
-        from spotidal.run import run_sync
+    try:
+        if args.autorun:
+            from spotidal.run import run_sync
 
-        if config is None:
-            print(f"No config found at '{config_path}'. Run `spotidal` first to set up.")
-            sys.exit(1)
-        run_sync(config, config_path)
-    elif args.oneshot:
-        from spotidal.run import run_oneshot
-
-        run_oneshot(config, config_path)
-    else:
-        from spotidal.setup import run_wizard
-        from spotidal.run import run_sync
-
-        config, action = run_wizard(config, config_path)
-        if action == "save_and_run":
+            if config is None:
+                print(f"No config found at '{config_path}'. Run `spotidal` first to set up.")
+                sys.exit(1)
             run_sync(config, config_path)
-        elif action == "cancel":
-            print("Setup cancelled.")
+        elif args.oneshot:
+            from spotidal.run import run_oneshot
+
+            run_oneshot(config, config_path)
+        else:
+            from spotidal.setup import run_wizard
+            from spotidal.run import run_sync
+
+            config, action = run_wizard(config, config_path)
+            if action == "save_and_run":
+                run_sync(config, config_path)
+            elif action == "cancel":
+                print("Setup cancelled.")
+    except AuthenticationError as e:
+        print(f"Authentication error: {e}")
+        sys.exit(1)
+    except SyncAbortError as e:
+        print(f"Sync aborted: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-    sys.exit(0)

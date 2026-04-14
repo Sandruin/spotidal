@@ -1,15 +1,13 @@
 import asyncio
 import math
-import sys
-import time
-import traceback
 
-import requests
 import spotipy
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
+from spotidal.errors import AuthenticationError
 from spotidal.match import match, simple
+from spotidal.retry import repeat_on_request_error
 from spotidal.type.models import Album, Artist, Playlist, Track
 
 SPOTIFY_SCOPES = 'playlist-read-private, playlist-modify-private, playlist-modify-public, user-library-read, user-library-modify'
@@ -34,8 +32,8 @@ class SpotifyProvider:
         )
         try:
             credentials_manager.get_access_token(as_dict=False)
-        except spotipy.SpotifyOauthError:
-            sys.exit(f"Error opening Spotify session; could not get token for username: {config['username']}")
+        except spotipy.SpotifyOauthError as e:
+            raise AuthenticationError(f"Error opening Spotify session; could not get token for username: {config['username']}") from e
         return cls(spotipy.Spotify(oauth_manager=credentials_manager))
 
     @property
@@ -146,28 +144,6 @@ class SpotifyProvider:
         return self._normalize_playlist(raw)
 
     # -- WriteProvider implementation --
-
-    async def _repeat_on_request_error(self, function, *args, remaining=5, **kwargs):
-        try:
-            return await function(*args, **kwargs)
-        except (spotipy.exceptions.SpotifyException, requests.exceptions.RequestException) as e:
-            if remaining:
-                print(f"{str(e)} occurred, retrying {remaining} times")
-            else:
-                print(f"{str(e)} could not be recovered")
-
-            if isinstance(e, requests.exceptions.RequestException) and e.response is not None:
-                print(f"Response message: {e.response.text}")
-                print(f"Response headers: {e.response.headers}")
-
-            if not remaining:
-                print("Aborting sync")
-                print(f"The following arguments were provided:\n\n {str(args)}")
-                print(traceback.format_exc())
-                sys.exit(1)
-            sleep_schedule = {5: 1, 4: 10, 3: 60, 2: 5 * 60, 1: 10 * 60}
-            time.sleep(sleep_schedule.get(remaining, 1))
-            return await self._repeat_on_request_error(function, *args, remaining=remaining - 1, **kwargs)
 
     async def search_track(self, source_track: Track) -> Track | None:
         """Search Spotify for a track matching the source track."""

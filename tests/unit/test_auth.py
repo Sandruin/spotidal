@@ -1,6 +1,8 @@
 # tests/unit/test_auth.py
 
+import pytest
 import spotipy
+from spotidal.errors import AuthenticationError
 from spotidal.providers.spotify import SpotifyProvider, SPOTIFY_SCOPES
 
 
@@ -54,7 +56,5 @@ def test_open_spotify_session_oauth_error(mocker):
         "redirect_uri": "http://127.0.0.1/",
     }
 
-    mock_sys_exit = mocker.patch("sys.exit")
-
-    SpotifyProvider.from_config(mock_config)
-    mock_sys_exit.assert_called_once()
+    with pytest.raises(AuthenticationError):
+        SpotifyProvider.from_config(mock_config)

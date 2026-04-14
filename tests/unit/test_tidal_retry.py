@@ -40,7 +40,7 @@ def test_add_tracks_retries_on_412(mocker):
     # First session.playlist() returns the original, second returns a fresh one
     provider._session.playlist.side_effect = [mock_raw_playlist, mock_fresh_playlist]
 
-    with patch("spotidal.providers.tidal.time.sleep"):
+    with patch("asyncio.sleep", return_value=None):
         asyncio.run(provider.add_tracks_to_playlist(playlist, ["1", "2", "3"]))
 
     # Original playlist was tried first
@@ -60,7 +60,7 @@ def test_add_tracks_412_retry_limit(mocker):
     provider._session.playlist.return_value = mock_playlist
 
     import pytest
-    with patch("spotidal.providers.tidal.time.sleep"):
+    with patch("asyncio.sleep", return_value=None):
         with pytest.raises(requests.exceptions.HTTPError):
             asyncio.run(provider.add_tracks_to_playlist(playlist, ["1", "2"]))
 
@@ -103,7 +103,7 @@ def test_add_tracks_chunked_412_mid_stream(mocker):
 
     provider._session.playlist.side_effect = [mock_raw_playlist, mock_fresh_playlist]
 
-    with patch("spotidal.providers.tidal.time.sleep"):
+    with patch("asyncio.sleep", return_value=None):
         asyncio.run(provider.add_tracks_to_playlist(playlist, track_ids))
 
     # First chunk succeeded on original playlist

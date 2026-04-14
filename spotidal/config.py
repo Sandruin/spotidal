@@ -5,7 +5,7 @@ import yaml
 
 from spotidal.providers.spotify import SpotifyProvider
 from spotidal.providers.tidal import TidalProvider
-from spotidal.type.config import AppConfig
+from spotidal.type.config import AppConfig, RuntimeConfig
 
 
 def load_config(config_path: str) -> AppConfig | None:
@@ -45,13 +45,13 @@ def save_config(config: AppConfig, config_path: str):
     print(f"Configuration saved to {config_path}")
 
 
-def build_runtime_config(config: AppConfig) -> dict:
+def build_runtime_config(config: AppConfig) -> RuntimeConfig:
     """Build the runtime config dict that sync functions expect."""
-    return {
-        "allow_deletions": config["sync"]["allow_deletions"],
-        "max_concurrency": config.get("max_concurrency", 10),
-        "rate_limit": config.get("rate_limit", 10),
-    }
+    return RuntimeConfig(
+        allow_deletions=config["sync"]["allow_deletions"],
+        max_concurrency=config.get("max_concurrency", 10),
+        rate_limit=config.get("rate_limit", 10),
+    )
 
 
 def backfill_playlist_ids(

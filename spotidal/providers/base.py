@@ -19,6 +19,9 @@ class ReadProvider(Protocol):
 
 @runtime_checkable
 class WriteProvider(Protocol):
+    @property
+    def name(self) -> str: ...
+
     async def search_track(self, source_track: Track) -> Track | None: ...
 
     async def create_playlist(self, name: str, description: str) -> Playlist: ...

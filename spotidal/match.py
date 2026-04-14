@@ -34,8 +34,8 @@ def name_match(a: Track, b: Track) -> bool:
             return False
 
     simple_a = simple(a.name.lower()).split('feat.')[0].strip()
-    simple_b = simple(b.name.lower())
-    return simple_a in simple_b or normalize(simple_a) in normalize(simple_b)
+    simple_b = simple(b.name.lower()).split('feat.')[0].strip()
+    return simple_a == simple_b or normalize(simple_a) == normalize(simple_b)
 
 
 def _split_artist_name(artist: str) -> Sequence[str]:
