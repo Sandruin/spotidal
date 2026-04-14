@@ -1,16 +1,37 @@
 import asyncio
 import math
+import sys
 
 import spotipy
 from tqdm.asyncio import tqdm as atqdm
 
 from spotify_to_tidal.type.models import Album, Artist, Playlist, Track
 
+SPOTIFY_SCOPES = 'playlist-read-private, user-library-read'
+
 
 class SpotifyProvider:
     def __init__(self, session: spotipy.Spotify):
         self._session = session
         self._user_id: str | None = None
+
+    @classmethod
+    def from_config(cls, config: dict) -> 'SpotifyProvider':
+        print("Opening Spotify session")
+        credentials_manager = spotipy.SpotifyOAuth(
+            username=config['username'],
+            scope=SPOTIFY_SCOPES,
+            client_id=config['client_id'],
+            client_secret=config['client_secret'],
+            redirect_uri=config['redirect_uri'],
+            requests_timeout=2,
+            open_browser=config.get('open_browser', True),
+        )
+        try:
+            credentials_manager.get_access_token(as_dict=False)
+        except spotipy.SpotifyOauthError:
+            sys.exit(f"Error opening Spotify session; could not get token for username: {config['username']}")
+        return cls(spotipy.Spotify(oauth_manager=credentials_manager))
 
     @property
     def name(self) -> str:

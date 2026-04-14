@@ -3,7 +3,6 @@ import yaml
 import argparse
 import sys
 
-from spotify_to_tidal import auth as _auth
 from spotify_to_tidal import sync as _sync
 from spotify_to_tidal.cache import MatchFailureDatabase, TrackMatchCache
 from spotify_to_tidal.providers.spotify import SpotifyProvider
@@ -19,15 +18,8 @@ def main():
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
-    print("Opening Spotify session")
-    spotify_session = _auth.open_spotify_session(config['spotify'])
-    print("Opening Tidal session")
-    tidal_session = _auth.open_tidal_session()
-    if not tidal_session.check_login():
-        sys.exit("Could not connect to Tidal")
-
-    source = SpotifyProvider(spotify_session)
-    dest = TidalProvider(tidal_session)
+    source = SpotifyProvider.from_config(config['spotify'])
+    dest = TidalProvider.from_config()
     cache = TrackMatchCache()
     failure_cache = MatchFailureDatabase()
 

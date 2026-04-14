@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import asyncio
 from collections.abc import Sequence
 import datetime

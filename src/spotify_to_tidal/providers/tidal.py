@@ -3,9 +3,11 @@ import math
 import sys
 import time
 import traceback
+import webbrowser
 
 import requests
 import tidalapi
+import yaml
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
@@ -16,6 +18,47 @@ from spotify_to_tidal.type.models import Album, Artist, Playlist, Track
 class TidalProvider:
     def __init__(self, session: tidalapi.Session):
         self._session = session
+
+    @classmethod
+    def from_config(cls, config: dict | None = None) -> 'TidalProvider':
+        print("Opening Tidal session")
+        try:
+            with open('.session.yml', 'r') as session_file:
+                previous_session = yaml.safe_load(session_file)
+        except OSError:
+            previous_session = None
+
+        session = tidalapi.Session(config=config) if config else tidalapi.Session()
+        if previous_session:
+            try:
+                if session.load_oauth_session(
+                    token_type=previous_session['token_type'],
+                    access_token=previous_session['access_token'],
+                    refresh_token=previous_session['refresh_token'],
+                ):
+                    if not session.check_login():
+                        sys.exit("Could not connect to Tidal")
+                    return cls(session)
+            except Exception as e:
+                print("Error loading previous Tidal Session: \n" + str(e))
+
+        login, future = session.login_oauth()
+        print('Login with the webbrowser: ' + login.verification_uri_complete)
+        url = login.verification_uri_complete
+        if not url.startswith('https://'):
+            url = 'https://' + url
+        webbrowser.open(url)
+        future.result()
+        with open('.session.yml', 'w') as f:
+            yaml.dump({
+                'session_id': session.session_id,
+                'token_type': session.token_type,
+                'access_token': session.access_token,
+                'refresh_token': session.refresh_token,
+            }, f)
+        if not session.check_login():
+            sys.exit("Could not connect to Tidal")
+        return cls(session)
 
     @property
     def name(self) -> str:
