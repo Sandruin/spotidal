@@ -64,6 +64,29 @@ class SpotifyProvider:
         )
 
     @staticmethod
+    def _is_valid_track(raw: dict) -> bool:
+        album = raw.get('album') or {}
+        album_artists = album.get('artists') or []
+        return (
+            raw.get('type', 'track') == 'track'
+            and raw.get('id') is not None
+            and raw.get('name') is not None
+            and raw.get('duration_ms') is not None
+            and 'name' in album
+            and album_artists
+            and album_artists[0].get('name') is not None
+        )
+
+    @staticmethod
+    def _extract_tracks(items: list[dict]) -> list[dict]:
+        tracks = []
+        for item in items:
+            track = item.get('track') or item.get('item')
+            if track is not None and SpotifyProvider._is_valid_track(track):
+                tracks.append(track)
+        return tracks
+
+    @staticmethod
     def _normalize_playlist(raw: dict) -> Playlist:
         return Playlist(
             provider_id=raw['id'],
@@ -74,7 +97,7 @@ class SpotifyProvider:
     async def _fetch_all_paginated(self, fetch_function) -> list[dict]:
         output = []
         results = fetch_function(0)
-        output.extend([item['track'] for item in results['items'] if item['track'] is not None])
+        output.extend(self._extract_tracks(results['items']))
 
         if results['next']:
             offsets = [results['limit'] * n for n in range(1, math.ceil(results['total'] / results['limit']))]
@@ -83,7 +106,7 @@ class SpotifyProvider:
                 desc="Fetching additional data chunks"
             )
             for extra_result in extra_results:
-                output.extend([item['track'] for item in extra_result['items'] if item['track'] is not None])
+                output.extend(self._extract_tracks(extra_result['items']))
 
         return output
 
@@ -110,25 +133,13 @@ class SpotifyProvider:
         ]
 
     async def get_playlist_tracks(self, playlist: Playlist) -> list[Track]:
-        fields = "next,total,limit,items(track(name,album(name,artists),artists,track_number,duration_ms,id,external_ids(isrc))),type"
-
         def _fetch(offset: int):
-            return self._session.playlist_tracks(playlist_id=playlist.provider_id, fields=fields, offset=offset)
+            return self._session.playlist_tracks(playlist_id=playlist.provider_id, offset=offset)
 
         print(f"Loading tracks from Spotify playlist '{playlist.name}'")
         raw_tracks = await self._fetch_all_paginated(_fetch)
 
-        def _is_valid(item: dict) -> bool:
-            return (
-                item.get('type', 'track') == 'track'
-                and 'album' in item
-                and 'name' in item['album']
-                and 'artists' in item['album']
-                and len(item['album']['artists']) > 0
-                and item['album']['artists'][0]['name'] is not None
-            )
-
-        return [self._normalize_track(t) for t in raw_tracks if _is_valid(t)]
+        return [self._normalize_track(t) for t in raw_tracks]
 
     async def get_favorite_tracks(self) -> list[Track]:
         def _fetch(offset: int):
