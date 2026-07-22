@@ -97,11 +97,13 @@ def _build_playlist_choices(
     mode: str,
     direction: str,
     existing_playlists: list[PlaylistEntry],
-) -> tuple[list[dict], list[str]]:
-    """Build unified playlist choices and list of pre-selected values.
+) -> list[dict]:
+    """Build unified playlist choices, pre-checking ones already in the config.
 
-    Returns (choices, default_values) where default_values are the 'value' strings
-    of playlists that should be pre-checked.
+    Returns choices, a list of dicts with "name", "value", and "enabled" keys.
+    InquirerPy's checkbox prompt (0.3.4) pre-checks a choice based on its own
+    "enabled" key, not the prompt-level "default" (which only affects initial
+    cursor position and expects a single scalar, not a list of values).
     """
     # Index playlists by name
     spotify_by_name = {p.name: p for p in spotify_playlists}
@@ -115,7 +117,6 @@ def _build_playlist_choices(
     existing_tidal_ids = {e["tidal_id"] for e in existing_playlists if e.get("tidal_id")}
 
     choices = []
-    defaults = []
 
     for name in all_names:
         sp = spotify_by_name.get(name)
@@ -128,6 +129,13 @@ def _build_playlist_choices(
             if direction == "tidal-to-spotify" and not td:
                 continue
 
+        # Check if this was previously selected
+        is_selected = (
+            name in existing_names
+            or (sp and sp.provider_id in existing_spotify_ids)
+            or (td and td.provider_id in existing_tidal_ids)
+        )
+
         # Build label annotation
         if sp and td:
             annotation = "on both"
@@ -135,23 +143,16 @@ def _build_playlist_choices(
             annotation = "Spotify only"
         else:
             annotation = "Tidal only"
+        if is_selected:
+            annotation += ", already synced"
 
         # Value encodes both IDs for later extraction
         value = f"{sp.provider_id if sp else ''}|{td.provider_id if td else ''}|{name}"
         label = f"{name}  ({annotation})"
 
-        choices.append({"name": label, "value": value})
+        choices.append({"name": label, "value": value, "enabled": is_selected})
 
-        # Check if this was previously selected
-        is_selected = (
-            name in existing_names
-            or (sp and sp.provider_id in existing_spotify_ids)
-            or (td and td.provider_id in existing_tidal_ids)
-        )
-        if is_selected:
-            defaults.append(value)
-
-    return choices, defaults
+    return choices
 
 
 def _parse_playlist_value(value: str) -> PlaylistEntry:
@@ -176,7 +177,7 @@ def prompt_playlists(
     tidal_playlists = asyncio.run(tidal.get_playlists())
     print(f"Found {len(spotify_playlists)} Spotify playlists, {len(tidal_playlists)} Tidal playlists.\n")
 
-    choices, defaults = _build_playlist_choices(
+    choices = _build_playlist_choices(
         spotify_playlists, tidal_playlists, mode, direction, existing_playlists,
     )
 
@@ -187,8 +188,7 @@ def prompt_playlists(
     selected = inquirer.checkbox(
         message="Select playlists to sync:",
         choices=choices,
-        default=defaults,
-        instruction="(Space to toggle, Enter to confirm)",
+        instruction="(Space to toggle, Enter to confirm; already-synced playlists are pre-checked)",
     ).execute()
 
     return [_parse_playlist_value(v) for v in selected]
