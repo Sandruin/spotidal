@@ -1,5 +1,7 @@
 import asyncio
 import math
+import os
+import sys
 
 import spotipy
 from tqdm import tqdm
@@ -13,6 +15,18 @@ from spotidal.type.models import Album, Artist, Playlist, Track
 SPOTIFY_SCOPES = 'playlist-read-private, playlist-modify-private, playlist-modify-public, user-library-read, user-library-modify'
 
 
+def _is_headless() -> bool:
+    if not sys.platform.startswith('linux'):
+        return False
+    return not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
+
+
+def _print_headless_auth_hint() -> None:
+    print("No graphical session detected on this host.")
+    print("Open the URL below on another device, authorize, then paste the full URL")
+    print("you were redirected to back here (the authorization code is in that URL).")
+
+
 class SpotifyProvider:
     def __init__(self, session: spotipy.Spotify):
         self._session = session
@@ -21,6 +35,9 @@ class SpotifyProvider:
     @classmethod
     def from_config(cls, config: dict) -> 'SpotifyProvider':
         print("Opening Spotify session")
+        open_browser = config.get('open_browser')
+        if open_browser is None:
+            open_browser = not _is_headless()
         credentials_manager = spotipy.SpotifyOAuth(
             username=config['username'],
             scope=SPOTIFY_SCOPES,
@@ -28,12 +45,28 @@ class SpotifyProvider:
             client_secret=config['client_secret'],
             redirect_uri=config['redirect_uri'],
             requests_timeout=2,
-            open_browser=config.get('open_browser', True),
+            open_browser=open_browser,
         )
+        if not open_browser and credentials_manager.cache_handler.get_cached_token() is None:
+            _print_headless_auth_hint()
         try:
             credentials_manager.get_access_token(as_dict=False)
         except spotipy.SpotifyOauthError as e:
-            raise AuthenticationError(f"Error opening Spotify session; could not get token for username: {config['username']}") from e
+            if getattr(e, 'error', None) != 'invalid_grant':
+                raise AuthenticationError(f"Error opening Spotify session; could not get token for username: {config['username']}") from e
+
+            cache_path = credentials_manager.cache_handler.cache_path
+            print(f"Saved Spotify session is no longer valid; clearing {cache_path} and re-authenticating")
+            try:
+                os.remove(cache_path)
+            except FileNotFoundError:
+                pass
+            if not open_browser:
+                _print_headless_auth_hint()
+            try:
+                credentials_manager.get_access_token(as_dict=False)
+            except spotipy.SpotifyOauthError as retry_error:
+                raise AuthenticationError(f"Error opening Spotify session; could not get token for username: {config['username']}") from retry_error
         return cls(spotipy.Spotify(oauth_manager=credentials_manager))
 
     @property

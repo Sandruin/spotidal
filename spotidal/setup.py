@@ -49,8 +49,11 @@ def authenticate_spotify(spotify_config: SpotifyConfig) -> SpotifyProvider:
             provider = SpotifyProvider.from_config(spotify_config)
             print("Connected to Spotify.\n")
             return provider
-        except AuthenticationError:
-            print("Authentication failed. Please check your credentials.\n")
+        except AuthenticationError as e:
+            print(f"Authentication failed: {e}")
+            if e.__cause__:
+                print(f"Cause: {e.__cause__}")
+            print()
             spotify_config = prompt_spotify_credentials(spotify_config)
 
 

@@ -39,6 +39,17 @@ The wizard walks you through:
 
 Your choices are saved to `config.yml`. At the end you can run the sync immediately or save and exit.
 
+## Headless servers
+
+When no graphical session is detected (Linux without `DISPLAY` or `WAYLAND_DISPLAY`), spotidal does not try to open a browser. Spotify authorization prints a URL and asks for a pasted URL instead:
+
+1. Open the printed URL on your local machine.
+2. Authorize the app.
+3. Your browser will be redirected to `http://127.0.0.1:8888/callback?code=...` and fail to load, because nothing is listening on that port on your machine. That is expected -- copy the full URL from the address bar.
+4. Paste the full URL into the terminal prompt.
+
+The redirect URI in the Spotify dashboard must match `spotify.redirect_uri` in `config.yml` (default `http://127.0.0.1:8888/callback`). You do not need to expose the server or change the redirect URI. You are copying the authorization code contained in the redirected URL, not an access token; spotidal exchanges it and caches the token locally.
+
 ## Usage
 
 ```
